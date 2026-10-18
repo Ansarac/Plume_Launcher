@@ -1,76 +1,163 @@
-# Plume Launcher
+<h1 align="center">Plume Launcher</h1>
 
-*Light as a feather.* A minimal, ad-free home screen for Android TV and Google TV.
+<p align="center">
+  <em>Light as a feather.</em> A minimal, ad-free home screen for Android TV and Google TV.
+</p>
 
-Your apps, a Continue Watching row, and nothing else. No ads, no recommendations, no account, no tracking.
+<p align="center">
+  <a href="https://github.com/aradhyas8/Plume_Launcher/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/aradhyas8/Plume_Launcher?label=release"></a>
+  <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3ddc84">
+  <img alt="APK size" src="https://img.shields.io/badge/APK-0.4%20MB-blue">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/aradhyas8/Plume_Launcher"></a>
+</p>
 
-## Why Plume
+<p align="center">
+  <img src="docs/home-light.jpg" alt="Plume home screen, light theme" width="49%">
+  <img src="docs/home-dark.jpg" alt="Plume home screen, dark theme" width="49%">
+</p>
+
+Plume replaces the cluttered stock home screen with the two things you actually use: your apps and what you were watching. There are no ads, no sponsored rows, no account and no tracking, and it stays out of the way of the apps it launches.
+
+## Highlights
+
+- **Tiny and fast.** A 0.4 MB APK with no third-party libraries. It uses about 45–60 MB of RAM and has no extra background services.
+- **Home button support on Google TV.** The Home button opens Plume directly, even on devices where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
+- **Continue Watching.** Resume shows and films from Android TV's Watch Next list and from apps that publish their own "Continue Watching" channel, such as Stremio.
+- **Clean apps row.** Monochrome logos in a single row. Rearrange it by holding OK, or sort by most used.
+- **HDMI inputs as apps.** A console or set-top box that names itself over HDMI-CEC (for example "PlayStation 5") gets its own tile, which switches the TV to that input.
+- **Light, dark or automatic theme**, each with its own wallpaper. You can add your own.
+- **Optional Gallery screensaver.** Public-domain landscape paintings in 16:9, downloaded only if you choose it.
+- **Optional weather** under the clock.
+
+## How it compares
 
 Measured on a Hisense Google TV (Android 12, 1.8 GB RAM):
 
-| | Plume | Projectivy | Google TV launcher |
+| | Plume | Projectivy Launcher | Google TV launcher |
 |---|---|---|---|
-| Download | **0.4 MB** | ~10–14 MB | 25 MB |
-| RAM while running | **~45–60 MB** | 65–70 MB | ~93 MB + 22 MB helper |
-| Background services | none extra | 2 | always-on helper |
-| Warm start (back from an app) | **~95 ms** | | |
+| APK size | **0.4 MB** | ~10–14 MB | ~25 MB |
+| RAM while running | **~45–60 MB** | ~65–70 MB | ~93 MB, plus a ~22 MB helper process |
+| Extra background services | **None** | 2 | 1 always-on helper |
+| Return to home from an app | **~95 ms** | – | – |
 
-No third-party libraries: plain Android views only.
+## Requirements
 
-## Features
+- Android TV or Google TV running **Android 8.0 (Oreo) or newer**
+- A way to sideload an APK: the *Downloader* app, a USB drive with a file manager, or `adb`
 
-- **Apps row**: mono logos, rearrange by holding OK, sort manually or by most used
-- **Continue Watching**: Android TV's Watch Next plus apps' own "Continue Watching" channels (e.g. Stremio); hide items by holding OK
-- **HDMI devices as tiles**: a console on HDMI (it names itself over CEC) gets its own tile
-- **Light, dark or automatic theme**, each with its own wallpaper; add your own wallpapers
-- **Gallery screensaver (optional)**: public-domain landscape paintings, all 16:9 so they fill the screen. They aren't in the APK: choosing Gallery in Plume's settings downloads them (4.7 MB), and switching back to another screensaver deletes them again.
-- **Weather** under the clock (optional, off by default)
-- **The Home button opens Plume directly**, even on Google TV, where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
+## Installation
 
-## Install
+1. Download the latest `Plume-<version>.apk` from the [Releases](https://github.com/aradhyas8/Plume_Launcher/releases/latest) page.
+2. Install it on your TV, using any of these:
+   - **Downloader app:** enter the APK's download link.
+   - **USB drive:** copy the APK over and open it with a file manager.
+   - **adb:** `adb install Plume-<version>.apk`
+3. Open **Plume** from your apps. Its settings panel opens automatically on first launch.
 
-1. Download `Plume-<version>.apk` from [Releases](../../releases).
-2. Sideload it: use the *Downloader* app, a USB stick with a file manager, or `adb install Plume-<version>.apk`.
-3. Open **Plume**. Its settings open on first launch:
-   - **Home button**: press OK, then switch on *Plume: Home button* in Accessibility (Android shows a standard warning for every accessibility service; Plume only listens for the Home key and can't read the screen).
-   - **Default launcher**: press OK and pick Plume.
-   - Allow the TV listings permission so Continue Watching can fill in.
+### First-run setup
 
-On Android 13 and newer, sideloaded apps are blocked from Accessibility at first. Open *Settings > Apps > Plume*, choose *Allow restricted settings*, and then turn it on.
+Plume's settings panel includes two setup rows:
 
-### Optional: one adb command
+| Setting | What to do |
+|---|---|
+| **Home button** | Press OK. In the Accessibility screen that opens, select **Plume: Home button** and turn it on. |
+| **Default launcher** | Press OK and choose **Plume** in the dialog. |
 
-```
+Allow the **TV listings** permission when asked; Continue Watching needs it.
+
+> [!NOTE]
+> Android shows the same generic warning for every accessibility service. Plume's service only listens for the Home key and for the system launcher appearing. It cannot read screen content.
+
+> [!TIP]
+> **Android 13 and newer:** Android blocks sideloaded apps from Accessibility at first. Open **Settings → Apps → Plume**, choose **Allow restricted settings** from the menu, then turn the service on.
+
+### Optional: grant one extra permission over adb
+
+```sh
 adb shell pm grant dev.plume android.permission.WRITE_SECURE_SETTINGS
 ```
 
-This lets Plume switch the Gallery screensaver on from its own settings, and turn its Home button back on by itself if the app is ever force-stopped. Everything else works without it.
+This lets Plume:
+- set the Gallery screensaver from its own settings
+- turn its Home button service back on automatically if the app is ever force-stopped
 
-### Your own wallpapers
+Everything else works without it.
 
-Copy `.jpg`, `.png` or `.webp` files into `Android/data/dev.plume/files/wallpapers/`, for example with `adb push`. They appear in *Light/Dark mode wallpaper*.
+## Using Plume
+
+| Action | How |
+|---|---|
+| Rearrange apps | Hold **OK** on an app, or use **Settings → Edit apps row** |
+| Hide a Continue Watching item | Hold **OK** on its card |
+| Choose which apps feed Continue Watching | **Settings → Continue Watching apps** |
+| Pin an app from *All apps* to the front | Open **All apps**, hold **OK** on the app |
+| Open the Google TV dashboard | Hold the **Home** button |
+
+### Custom wallpapers
+
+Copy `.jpg`, `.png` or `.webp` files to `Android/data/dev.plume/files/wallpapers/` on the TV, for example:
+
+```sh
+adb push my-wallpaper.jpg /sdcard/Android/data/dev.plume/files/wallpapers/
+```
+
+They appear under **Light mode wallpaper** and **Dark mode wallpaper**. A gentle fade is added automatically so the rows stay readable.
+
+### Gallery screensaver
+
+Select **Settings → Screensaver** to switch to Gallery. Plume downloads the paintings (4.7 MB) from this repository's releases and stores them privately. Switching back to another screensaver deletes them again, so they only take space while you use them.
 
 ## Privacy
 
-Plume has no analytics and no account. The only network requests are:
-- poster images for your Continue Watching items
-- the Gallery paintings from this repo's releases, only if you choose the Gallery screensaver
-- **only if you turn Weather on**: your approximate location from your IP address ([ipwho.is](https://ipwho.is)), and the forecast from [Open-Meteo](https://open-meteo.com)
+Plume has no analytics, no ads and no account. It only connects to the internet to:
+- load poster images for your Continue Watching items
+- download the Gallery paintings from this repository, **only if you choose that screensaver**
+- fetch the weather, **only if you turn it on**. It looks up your approximate location from your IP address via [ipwho.is](https://ipwho.is), then gets the forecast from [Open-Meteo](https://open-meteo.com).
 
-## Build
+## Troubleshooting
 
-```
+<details>
+<summary><b>The Home button still opens the old home screen</b></summary>
+
+Check that **Settings → Home button** shows **On**. If the app was force-stopped, Android turns its accessibility service off; open Plume once (or grant the optional adb permission above) to restore it.
+</details>
+
+<details>
+<summary><b>Continue Watching is empty</b></summary>
+
+Make sure the TV listings permission is allowed (**Settings → Apps → Plume → Permissions**), and that the app you watch publishes to Android TV's Watch Next list. Check **Settings → Continue Watching apps** in Plume too.
+</details>
+
+<details>
+<summary><b>The screensaver option says it needs an adb permission</b></summary>
+
+Google TV hides third-party screensavers from its own settings, so Plume needs the one-time `WRITE_SECURE_SETTINGS` grant shown above to switch it for you.
+</details>
+
+## Building from source
+
+```sh
+git clone https://github.com/aradhyas8/Plume_Launcher.git
+cd Plume_Launcher
 ./gradlew assembleRelease
 ```
 
-Without a `keystore.properties`, release builds are signed with your debug key, which is fine for sideloading your own build.
+The APK is written to `app/build/outputs/apk/release/`. Without a `keystore.properties` file, release builds are signed with your local debug key, which is fine for installing your own build.
+
+## Contributing
+
+Bug reports and pull requests are welcome. Please open an issue first for larger changes. Plume deliberately avoids third-party libraries and background work, so contributions should keep it small and light.
 
 ## Credits
 
-- **Screensaver paintings** (public domain, scans via Wikimedia Commons; files in [`screensaver/`](screensaver)): Frederic Edwin Church, *The Heart of the Andes*, *The Icebergs*, *Chimborazo*, *Cotopaxi*; Ivan Shishkin, *Rye*; Jasper Francis Cropsey, *Autumn on the Hudson River*; Martin Johnson Heade, *Thunder Storm on Narragansett Bay*
-- **Wallpapers**: "Canada" by Thomas Curryer ([Unsplash](https://unsplash.com/@tawc20)), CC0
-- **App logos**: [Simple Icons](https://simpleicons.org), CC0. Brand marks belong to their owners.
+- **Screensaver paintings** (public domain, scans via Wikimedia Commons; files in [`screensaver/`](screensaver)):
+  - Frederic Edwin Church: *The Heart of the Andes*, *The Icebergs*, *Chimborazo*, *Cotopaxi*
+  - Ivan Shishkin: *Rye*
+  - Jasper Francis Cropsey: *Autumn on the Hudson River*
+  - Martin Johnson Heade: *Thunder Storm on Narragansett Bay*
+- **Wallpapers:** "Canada" by Thomas Curryer, via [Unsplash](https://unsplash.com/@tawc20) (CC0)
+- **App logos:** [Simple Icons](https://simpleicons.org) (CC0). All trademarks belong to their respective owners.
 
 ## License
 
-[MIT](LICENSE)
+Plume Launcher is released under the [MIT License](LICENSE).
