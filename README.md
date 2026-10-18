@@ -10,7 +10,7 @@ Measured on a Hisense Google TV (Android 12, 1.8 GB RAM):
 
 | | Plume | Projectivy | Google TV launcher |
 |---|---|---|---|
-| Download | **5.1 MB** (under 1 MB without the screensaver art) | ~10–14 MB | 25 MB |
+| Download | **0.4 MB** | ~10–14 MB | 25 MB |
 | RAM while running | **~45–60 MB** | 65–70 MB | ~93 MB + 22 MB helper |
 | Background services | none extra | 2 | always-on helper |
 | Warm start (back from an app) | **~95 ms** | | |
@@ -23,7 +23,7 @@ No third-party libraries: plain Android views only.
 - **Continue Watching**: Android TV's Watch Next plus apps' own "Continue Watching" channels (e.g. Stremio); hide items by holding OK
 - **HDMI devices as tiles**: a console on HDMI (it names itself over CEC) gets its own tile
 - **Light, dark or automatic theme**, each with its own wallpaper; add your own wallpapers
-- **Gallery screensaver**: public-domain landscape paintings, all 16:9 so they fill the screen
+- **Gallery screensaver (optional)**: public-domain landscape paintings, all 16:9 so they fill the screen. They aren't in the APK: choosing Gallery in Plume's settings downloads them (4.7 MB), and switching back to another screensaver deletes them again.
 - **Weather** under the clock (optional, off by default)
 - **The Home button opens Plume directly**, even on Google TV, where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
 
@@ -54,6 +54,7 @@ Copy `.jpg`, `.png` or `.webp` files into `Android/data/dev.plume/files/wallpape
 
 Plume has no analytics and no account. The only network requests are:
 - poster images for your Continue Watching items
+- the Gallery paintings from this repo's releases, only if you choose the Gallery screensaver
 - **only if you turn Weather on**: your approximate location from your IP address ([ipwho.is](https://ipwho.is)), and the forecast from [Open-Meteo](https://open-meteo.com)
 
 ## Build
@@ -66,7 +67,7 @@ Without a `keystore.properties`, release builds are signed with your debug key, 
 
 ## Credits
 
-- **Screensaver paintings** (public domain, scans via Wikimedia Commons): Frederic Edwin Church, *The Heart of the Andes*, *The Icebergs*, *Chimborazo*, *Cotopaxi*; Ivan Shishkin, *Rye*; Jasper Francis Cropsey, *Autumn on the Hudson River*; Martin Johnson Heade, *Thunder Storm on Narragansett Bay*
+- **Screensaver paintings** (public domain, scans via Wikimedia Commons; files in [`screensaver/`](screensaver)): Frederic Edwin Church, *The Heart of the Andes*, *The Icebergs*, *Chimborazo*, *Cotopaxi*; Ivan Shishkin, *Rye*; Jasper Francis Cropsey, *Autumn on the Hudson River*; Martin Johnson Heade, *Thunder Storm on Narragansett Bay*
 - **Wallpapers**: "Canada" by Thomas Curryer ([Unsplash](https://unsplash.com/@tawc20)), CC0
 - **App logos**: [Simple Icons](https://simpleicons.org), CC0. Brand marks belong to their owners.
 

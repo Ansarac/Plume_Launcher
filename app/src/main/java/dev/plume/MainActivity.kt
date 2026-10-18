@@ -198,6 +198,8 @@ class MainActivity : Activity() {
         ui.removeCallbacks(weatherTick)
         ui.post(weatherTick)
         ui.postDelayed(themeTick, 60_000L)
+        // Gallery chosen but its paintings missing (updated from a version that bundled them): fetch them.
+        if (galleryOn() && !paintingsReady(this)) downloadPaintings {}
     }
 
     /** Auto theme flips at 7:00 and 19:00 even while the home screen just sits there. */
@@ -456,9 +458,13 @@ class MainActivity : Activity() {
                 ui.post(weatherTick)
                 renderSettings(7)
             },
-            Triple("Screensaver", if (galleryOn()) "Gallery" else screensaverName()) {
+            Triple("Screensaver", when {
+                downloading -> "Downloading Gallery…"
+                galleryOn() -> "Gallery"
+                else -> "${screensaverName()} · Gallery $PAINTINGS_MB"
+            }) {
                 toggleGallery()
-                renderSettings(8)
+                renderSettings(SCREENSAVER_ROW)
             },
             Triple("Test screensaver", "") { testScreensaver() },
             Triple("Home button", if (homeServiceOn()) "On" else "Off: press to turn on") { turnOnHomeButton() },
@@ -970,11 +976,45 @@ class MainActivity : Activity() {
         val cr = contentResolver
         if (galleryOn()) {
             Settings.Secure.putString(cr, "screensaver_components", prefs.getString("prev_screensaver", "") ?: "")
+            paintingsDir(this).deleteRecursively() // another screensaver is in charge: give the space back
+        } else if (!paintingsReady(this)) {
+            downloadPaintings { toggleGallery() }
         } else {
             prefs.edit().putString("prev_screensaver", currentScreensaver()).apply()
             Settings.Secure.putString(cr, "screensaver_components", gallery())
             Settings.Secure.putInt(cr, "screensaver_enabled", 1)
         }
+    }
+
+    @Volatile private var downloading = false
+
+    /**
+     * Fetches the Gallery paintings into a temporary folder and only swaps it in once every file arrived,
+     * so a dropped connection never leaves a half-filled Gallery behind.
+     */
+    private fun downloadPaintings(then: () -> Unit) {
+        if (downloading) return
+        downloading = true
+        Toast.makeText(this, "Downloading Gallery paintings ($PAINTINGS_MB)…", Toast.LENGTH_SHORT).show()
+        Thread {
+            val part = File(filesDir, "paintings.part").apply { deleteRecursively(); mkdirs() }
+            val ok = try {
+                for (f in PAINTING_FILES) openStream(PAINTINGS_URL + f).use { input ->
+                    File(part, f).outputStream().use { input.copyTo(it) }
+                }
+                paintingsDir(this).deleteRecursively()
+                part.renameTo(paintingsDir(this))
+            } catch (e: Exception) {
+                android.util.Log.w("Plume", "paintings download failed ($e)")
+                part.deleteRecursively()
+                false
+            }
+            ui.post {
+                downloading = false
+                if (ok) then() else Toast.makeText(this, "Couldn't download the paintings. Check the connection and try again.", Toast.LENGTH_LONG).show()
+                if (settingsScrim.visibility == View.VISIBLE) renderSettings(SCREENSAVER_ROW)
+            }
+        }.start()
     }
 
     /** Starts whichever screensaver is set, through SystemUI's "dream now" entry point. */
@@ -1401,7 +1441,8 @@ class MainActivity : Activity() {
         const val TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
         const val WRITE_SECURE = "android.permission.WRITE_SECURE_SETTINGS"
         const val ROLE_REQUEST = 2
-        const val HOME_BUTTON_ROW = 10 // positions in the settings list (see renderSettings)
+        const val SCREENSAVER_ROW = 8 // positions in the settings list (see renderSettings)
+        const val HOME_BUTTON_ROW = 10
         const val DEFAULT_HOME_ROW = 11
         const val WRITE_EPG ="com.android.providers.tv.permission.WRITE_EPG_DATA"
         const val TV_SETTINGS = "com.android.tv.settings"

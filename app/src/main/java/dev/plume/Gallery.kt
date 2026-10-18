@@ -12,10 +12,12 @@ import android.service.dreams.DreamService
 import android.view.KeyEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import java.io.File
 import java.util.concurrent.Executors
 
 /**
- * Public-domain museum scans in assets/paintings/: only paintings whose canvas is (within ~2-4%) 16:9, cropped
+ * Public-domain museum scans, not bundled: downloaded on demand from the repo's `gallery-1` release (the
+ * files live in screensaver/) into [paintingsDir], so the APK stays under 1 MB for people who never use it. only paintings whose canvas is (within ~2-4%) 16:9, cropped
  * to exactly 1920×1080 so they fill the screen with nothing cut off and no bars. Bright ones for light mode,
  * dusk and storm ones for dark (wide night paintings are rare).
  */
@@ -32,6 +34,12 @@ private val DARK = listOf(
     Painting("cotopaxi", "Cotopaxi", "Frederic Edwin Church, 1862"),
     Painting("thunderstorm", "Thunder Storm on Narragansett Bay", "Martin Johnson Heade, 1868"),
 )
+
+internal const val PAINTINGS_URL = "https://github.com/aradhyas8/Plume_Launcher/releases/download/gallery-1/"
+internal const val PAINTINGS_MB = "4.7 MB"
+internal val PAINTING_FILES = (LIGHT + DARK).map { "${it.file}.jpg" }
+internal fun paintingsDir(c: Context) = File(c.filesDir, "paintings")
+internal fun paintingsReady(c: Context) = PAINTING_FILES.all { File(paintingsDir(c), it).exists() }
 
 /**
  * The Gallery screensaver. Picked in launcher settings, which also restore the previous one when it's off.
@@ -126,7 +134,7 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
         val p = paintings[i]
         io.execute {
             val bmp = try {
-                context.assets.open("paintings/${p.file}.jpg").use { BitmapFactory.decodeStream(it) }
+                File(paintingsDir(context), "${p.file}.jpg").inputStream().use { BitmapFactory.decodeStream(it) }
             } catch (e: Exception) {
                 null
             } ?: return@execute
