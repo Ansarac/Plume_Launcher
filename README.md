@@ -8,7 +8,7 @@
   <a href="https://github.com/aradhyas8/Plume_Launcher/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/aradhyas8/Plume_Launcher?label=release"></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3ddc84">
   <img alt="APK size" src="https://img.shields.io/badge/APK-0.4%20MB-blue">
-  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/aradhyas8/Plume_Launcher"></a>
+  <a href="LICENSE"><img alt="GPL-3.0 License" src="https://img.shields.io/github/license/aradhyas8/Plume_Launcher"></a>
 </p>
 
 <p align="center">
@@ -160,4 +160,6 @@ Bug reports and pull requests are welcome. Please open an issue first for larger
 
 ## License
 
-Plume Launcher is released under the [MIT License](LICENSE).
+Copyright (C) 2026 aradhyas8
+
+Plume Launcher is free software, released under the [GNU General Public License v3.0](LICENSE). You may use, modify and redistribute it, but any distributed version, modified or not, must also be released under the GPL-3.0 with its full source code.
