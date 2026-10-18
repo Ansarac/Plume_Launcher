@@ -49,7 +49,7 @@ Measured on a Hisense Google TV (Android 12, 1.8 GB RAM):
 
 1. Download the latest `Plume-<version>.apk` from the [Releases](https://github.com/aradhyas8/Plume_Launcher/releases/latest) page.
 2. Install it on your TV, using any of these:
-   - **Downloader app:** enter the APK's download link.
+   - **Downloader app:** enter the code **`2125356`**. It always points to the latest release.
    - **USB drive:** copy the APK over and open it with a file manager.
    - **adb:** `adb install Plume-<version>.apk`
 3. Open **Plume** from your apps. Its settings panel opens automatically on first launch.
