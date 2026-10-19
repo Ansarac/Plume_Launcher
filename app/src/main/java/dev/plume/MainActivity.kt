@@ -802,7 +802,8 @@ class MainActivity : Activity() {
                 tint = BRAND_COLOURS[a.pkg]?.takeIf { colour }) { launch(a) }
             else -> cachedGlyph(a)?.let { tile(name, it, true, a.pkg, tint = if (colour) cachedAccent(a) else null) { launch(a) } }
                 ?: if (colour) tile(name, a.icon.constantState?.newDrawable(resources) ?: a.icon, false, a.pkg) { launch(a) }
-                else tile(name, a.icon.mutate().apply { colorFilter = GREYSCALE }, false, a.pkg) { launch(a) }
+                // A copy: greying the shared icon itself would keep it grey after switching to colour.
+                else tile(name, (a.icon.constantState?.newDrawable(resources) ?: a.icon).mutate().apply { colorFilter = GREYSCALE }, false, a.pkg) { launch(a) }
         }
         t.contentDescription = a.label
         return t

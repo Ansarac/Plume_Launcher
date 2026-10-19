@@ -20,7 +20,7 @@ Plume replaces the cluttered stock home screen with the two things you actually 
 
 ## Highlights
 
-- **Tiny and fast.** A 0.4 MB APK with no third-party libraries. It uses about 45–60 MB of RAM and has no extra background services.
+- **Tiny and fast.** A 0.4 MB APK with no third-party libraries. It uses about 50–70 MB of RAM and has no extra background services.
 - **Home button support on Google TV.** The Home button opens Plume directly, even on devices where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
 - **Continue Watching.** Resume shows and films from Android TV's Watch Next list and from apps that publish their own "Continue Watching" channel, such as Stremio.
 - **Clean apps row.** Monochrome logos (or the same logos in brand colour) in a single row, with names on focus, always or never. Rearrange it by holding OK, sort by most used, or hide apps you don't use (they stay in All apps).
@@ -37,7 +37,7 @@ Measured on a Hisense Google TV (Android 12, 1.8 GB RAM):
 | | Plume | Projectivy Launcher | Google TV launcher |
 |---|---|---|---|
 | APK size | **0.4 MB** | ~10–14 MB | ~25 MB |
-| RAM while running | **~45–60 MB** | ~65–70 MB | ~93 MB, plus a ~22 MB helper process |
+| RAM while running | **~50–70 MB** | ~65–70 MB | ~93 MB, plus a ~22 MB helper process |
 | Extra background services | **None** | 2 | 1 always-on helper |
 | Return to home from an app | **~95 ms** | – | – |
 
@@ -91,7 +91,11 @@ Everything else works without it.
 | Rearrange apps | Hold **OK** on an app, or use **Settings → Edit apps row** |
 | Hide a Continue Watching item | Hold **OK** on its card |
 | Choose which apps feed Continue Watching | **Settings → Continue Watching apps** |
-| Pin an app from *All apps* to the front | Open **All apps**, hold **OK** on the app |
+| Pin an app from *All apps* to the front | Open **All apps**, hold **OK** on the app (this also unhides it) |
+| Hide apps from the row | **Settings → Apps in row** |
+| Show app names always, on focus or never | **Settings → App names** |
+| Switch between monochrome and colour icons | **Settings → Icon style** |
+| Update Plume | **Settings → Updates** |
 | Open the Google TV dashboard | Hold the **Home** button |
 
 ### Custom wallpapers
@@ -114,8 +118,11 @@ Select **Settings → Screensaver** to switch to Gallery. Plume downloads the pa
 
 Plume has no analytics, no ads and no account. It only connects to the internet to:
 - load poster images for your Continue Watching items
+- check this repository's GitHub releases for a new version, once a day, and download it when you choose to update
 - download the Gallery paintings from this repository, **only if you choose that screensaver**
 - fetch the weather, **only if you turn it on**. It looks up your approximate location from your IP address via [ipwho.is](https://ipwho.is), then gets the forecast from [Open-Meteo](https://open-meteo.com).
+
+**Add from phone…** runs a small upload page on the TV itself, reachable only on your home network and only while that screen is open. Photos go straight from your phone to the TV and nowhere else.
 
 ## Troubleshooting
 
