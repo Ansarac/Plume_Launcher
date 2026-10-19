@@ -23,11 +23,12 @@ Plume replaces the cluttered stock home screen with the two things you actually 
 - **Tiny and fast.** A 0.4 MB APK with no third-party libraries. It uses about 45–60 MB of RAM and has no extra background services.
 - **Home button support on Google TV.** The Home button opens Plume directly, even on devices where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
 - **Continue Watching.** Resume shows and films from Android TV's Watch Next list and from apps that publish their own "Continue Watching" channel, such as Stremio.
-- **Clean apps row.** Monochrome logos in a single row. Rearrange it by holding OK, or sort by most used.
+- **Clean apps row.** Monochrome logos (or the same logos in brand colour) in a single row, with names on focus, always or never. Rearrange it by holding OK, sort by most used, or hide apps you don't use (they stay in All apps).
 - **HDMI inputs as apps.** A console or set-top box that names itself over HDMI-CEC (for example "PlayStation 5") gets its own tile, which switches the TV to that input.
-- **Light, dark or automatic theme**, each with its own wallpaper. You can add your own.
+- **Light, dark or automatic theme**, each with its own wallpaper. Add your own photos from your phone by scanning a QR code.
 - **Optional Gallery screensaver.** Public-domain landscape paintings in 16:9, downloaded only if you choose it.
 - **Optional weather** under the clock.
+- **Updates itself.** Plume checks GitHub once a day and installs new versions from its settings (from 1.2 on). The first update asks you to allow installs from Plume.
 
 ## How it compares
 
@@ -95,13 +96,15 @@ Everything else works without it.
 
 ### Custom wallpapers
 
-Copy `.jpg`, `.png` or `.webp` files to `Android/data/dev.plume/files/wallpapers/` on the TV, for example:
+Open **Light mode wallpaper** or **Dark mode wallpaper** in Plume settings and choose **Add from phone…**. Scan the QR code with your phone (it must be on the same Wi-Fi as the TV), pick a photo and upload it. It becomes the wallpaper straight away. The TV turns it upright, crops it to the screen around its centre and saves a small copy. The upload page only works while that screen is open. **Remove a photo…** in the same list deletes one.
+
+You can also copy `.jpg`, `.png` or `.webp` files to `Android/data/dev.plume/files/wallpapers/` yourself:
 
 ```sh
 adb push my-wallpaper.jpg /sdcard/Android/data/dev.plume/files/wallpapers/
 ```
 
-They appear under **Light mode wallpaper** and **Dark mode wallpaper**. A gentle fade is added automatically so the rows stay readable.
+A gentle fade is added automatically so the rows stay readable.
 
 ### Gallery screensaver
 

@@ -167,6 +167,15 @@
                     android:gravity="center"
                     android:maxLines="1"
                     android:textSize="13sp" />
+
+                <!-- "App names: Always": every name under its tile, in place of rowLabel (same space). -->
+                <LinearLayout
+                    android:id="@+id/nameRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="20dp"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal"
+                    android:visibility="gone" />
             </LinearLayout>
         </dev.plume.SnapScrollView>
 
