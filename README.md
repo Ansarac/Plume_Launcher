@@ -23,10 +23,10 @@ Plume replaces the cluttered stock home screen with the two things you actually 
 - **Tiny and fast.** A 0.4 MB APK with no third-party libraries. It uses about 50–70 MB of RAM and has no extra background services.
 - **Home button support on Google TV.** The Home button opens Plume directly, even on devices where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
 - **Continue Watching.** Resume shows and films from Android TV's Watch Next list and from apps that publish their own "Continue Watching" channel, such as Stremio.
-- **Clean apps row.** Monochrome logos (or the same logos in brand colour) in a single row, with names on focus, always or never. Rearrange it by holding OK, sort by most used, or hide apps you don't use (they stay in All apps).
+- **Clean apps row.** Monochrome logos (or the same logos in brand colour) in a single row, with names on focus, always or never. Rearrange it by holding OK, sort by most used, or hide apps you don't use (they stay in All apps). An optional PIN locks the layout so small hands can't rearrange it.
 - **HDMI inputs as apps.** A console or set-top box that names itself over HDMI-CEC (for example "PlayStation 5") gets its own tile, which switches the TV to that input.
-- **Light, dark or automatic theme**, each with its own wallpaper. Add your own photos from your phone by scanning a QR code.
-- **Optional Gallery screensaver.** Public-domain landscape paintings in 16:9, downloaded only if you choose it.
+- **Light, dark or automatic theme**, each with its own wallpaper. Add your own photos from your phone by scanning a QR code, or show a folder of photos from the TV or a USB drive that changes on a timer.
+- **Optional Gallery screensaver.** Public-domain landscape paintings in 16:9, downloaded only if you choose it, or a folder of your own photos.
 - **Optional weather** under the clock.
 - **Updates itself.** Plume checks GitHub once a day and installs new versions from its settings (from 1.2 on). The first update asks you to allow installs from Plume.
 
@@ -89,13 +89,15 @@ Everything else works without it.
 | Action | How |
 |---|---|
 | Rearrange apps | Hold **OK** on an app, or use **Settings → Edit apps row** |
-| Hide a Continue Watching item | Hold **OK** on its card |
+| Hide a Continue Watching item | Hold **OK** on its card, then **Remove from Continue Watching** |
+| Remove an app from the row | Hold **OK** on it, then **Remove from row** (it stays in *All apps*) |
 | Choose which apps feed Continue Watching | **Settings → Continue Watching apps** |
 | Pin an app from *All apps* to the front | Open **All apps**, hold **OK** on the app (this also unhides it) |
 | Hide apps from the row | **Settings → Apps in row** |
 | Show app names always, on focus or never | **Settings → App names** |
 | Switch between monochrome and colour icons | **Settings → Icon style** |
 | Update Plume | **Settings → Updates** |
+| Lock the layout with a PIN | **Settings → Lock layout** |
 | Open the Google TV dashboard | Hold the **Home** button |
 
 ### Custom wallpapers
@@ -108,7 +110,17 @@ You can also copy `.jpg`, `.png` or `.webp` files to `Android/data/dev.plume/fil
 adb push my-wallpaper.jpg /sdcard/Android/data/dev.plume/files/wallpapers/
 ```
 
-A gentle fade is added automatically so the rows stay readable.
+A gentle fade is added automatically so the rows stay readable (**Settings → Photo fade** turns it off).
+
+### Photo folders
+
+Choose **Choose a folder on this TV…** in the wallpaper list to use a whole folder of photos, from the TV's storage or a USB drive. Plume asks for access to your photos the first time. The photos take turns in shuffled order; **Settings → Folder photo changes** sets how often, from every minute to once a day. The screensaver can show a folder too: **Settings → Screensaver → Your photos**.
+
+### Lock layout
+
+**Settings → Lock layout** sets a 4-digit PIN. While it's on, Plume settings and anything that changes the home screen (moving, removing or pinning apps, hiding shows) ask for the PIN first; opening apps works as usual. One PIN unlocks changes for five minutes, until you leave the home screen. Use the arrows or the remote's number keys to enter it.
+
+The lock keeps the layout safe, it isn't parental control: apps can still be opened by voice search or from Android settings. Forgot the PIN? **Android Settings → Apps → Plume → Clear data** removes it, along with your layout and settings.
 
 ### Gallery screensaver
 

@@ -13,8 +13,8 @@ android {
         applicationId = "dev.plume"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.2.1"
+        versionCode = 5
+        versionName = "1.3"
     }
 
     // Release key lives outside the repo; keystore.properties (git-ignored) points at it. Without that file
