@@ -105,7 +105,7 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:layout_marginStart="8dp"
-                android:contentDescription="Launcher settings"
+                android:contentDescription="Plume settings"
                 android:focusable="true"
                 android:padding="8dp"
                 android:src="@drawable/ic_tune" />
@@ -278,7 +278,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
                 android:paddingStart="14dp"
-                android:text="Launcher settings"
+                android:text="Plume settings"
                 android:textSize="20sp" />
 
             <!-- Scrolls once the rows outgrow the screen; focus moving down scrolls it along. -->

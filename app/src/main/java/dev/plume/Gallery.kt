@@ -1,5 +1,6 @@
 package dev.plume
 
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -13,6 +14,7 @@ import android.view.KeyEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.Executors
 
 /**
@@ -22,6 +24,9 @@ import java.util.concurrent.Executors
  * dusk and storm ones for dark (wide night paintings are rare).
  */
 private class Painting(val file: String, val title: String, val artist: String)
+
+/** One picture in the show: a painting with its caption, or one of your photos (no caption). */
+private class Picture(val title: String, val artist: String, val load: () -> Bitmap?)
 
 private val LIGHT = listOf(
     Painting("andes", "The Heart of the Andes", "Frederic Edwin Church, 1859"),
@@ -43,7 +48,8 @@ internal fun paintingsReady(c: Context) = PAINTING_FILES.all { File(paintingsDir
 
 /**
  * The Gallery screensaver. Picked in launcher settings, which also restore the previous one when it's off.
- * ◀ ▶ step through the paintings; any other key leaves to the launcher's home screen.
+ * Shows the paintings, or a folder of your photos when one is chosen there ("ss_folder").
+ * ◀ ▶ step through the pictures; any other key leaves to the launcher's home screen.
  */
 class GalleryDream : DreamService() {
     private var show: GalleryShow? = null
@@ -81,11 +87,28 @@ class GalleryDream : DreamService() {
  * Outgoing paintings are recycled as soon as they're off screen, and everything when the dream ends.
  */
 private class GalleryShow(private val context: Context) : SurfaceHolder.Callback {
-    private val paintings = if (prefersDark(context.getSharedPreferences("home", Context.MODE_PRIVATE))) DARK else LIGHT
+    private val paintings = pictures()
     private val io = Executors.newSingleThreadExecutor()
     val view = SurfaceView(context).also { it.holder.addCallback(this) }
 
-    private class Slide(val bmp: Bitmap, val painting: Painting, val start: Long, val fadeMs: Long)
+    /** A folder's photos in shuffled order if one is chosen and still has photos, else the theme's paintings. */
+    private fun pictures(): List<Picture> {
+        val prefs = context.getSharedPreferences("home", Context.MODE_PRIVATE)
+        val photos = try {
+            prefs.getString("ss_folder", null)?.let { folderPhotos(context.contentResolver, it) }.orEmpty()
+        } catch (e: Exception) { // photo access taken away
+            emptyList()
+        }
+        if (photos.isNotEmpty()) return photos.shuffled().map { id ->
+            val uri = ContentUris.withAppendedId(PHOTOS, id)
+            Picture("", "") { fitWallpaper { context.contentResolver.openInputStream(uri) ?: throw IOException("gone: $uri") } }
+        }
+        return (if (prefersDark(prefs)) DARK else LIGHT).map { p ->
+            Picture(p.title, p.artist) { File(paintingsDir(context), "${p.file}.jpg").inputStream().use { BitmapFactory.decodeStream(it) } }
+        }
+    }
+
+    private class Slide(val bmp: Bitmap, val painting: Picture, val start: Long, val fadeMs: Long)
 
     // Shared between the loader and the render thread; swaps and draws hold [lock], so a bitmap is
     // never recycled mid-draw.
@@ -134,7 +157,7 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
         val p = paintings[i]
         io.execute {
             val bmp = try {
-                File(paintingsDir(context), "${p.file}.jpg").inputStream().use { BitmapFactory.decodeStream(it) }
+                p.load()
             } catch (e: Exception) {
                 null
             } ?: return@execute
@@ -196,7 +219,7 @@ private class GalleryShow(private val context: Context) : SurfaceHolder.Callback
             t < CAPTION_MS + FADE_MS -> 1f - (t - CAPTION_MS).toFloat() / FADE_MS
             else -> 0f
         }
-        if (a > 0f) {
+        if (a > 0f && cur.painting.title.isNotEmpty()) {
             val u = c.height / 1080f // design in 1080p units, draw at panel resolution
             title.textSize = 30f * u
             artist.textSize = 22f * u
