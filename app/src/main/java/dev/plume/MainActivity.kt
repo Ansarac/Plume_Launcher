@@ -309,10 +309,12 @@ class MainActivity : Activity() {
 
     /**
      * Android drops our Home service from the enabled accessibility services whenever the app is
-     * force-stopped, and then Home lands on Google TV. Put it back (needs the adb-granted permission).
+     * force-stopped, and then Home lands on Google TV. Put it back (needs the adb-granted permission),
+     * unless the user turned it off.
      */
     private fun ensureHomeService() {
-        if (checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED || homeServiceOn()) return
+        if (homeServiceOn()) return prefs.edit().remove("home_off").apply() // what Android says wins
+        if (prefs.getBoolean("home_off", false) || checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED) return
         val me = ComponentName(this, HomeOverride::class.java).flattenToString()
         val on = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
         Settings.Secure.putString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, if (on.isEmpty()) me else "$on:$me")
@@ -326,9 +328,28 @@ class MainActivity : Activity() {
             .split(':').any { ComponentName.unflattenFromString(it) == me }
     }
 
+    private fun toggleHomeButton() = if (homeServiceOn()) turnOffHomeButton() else turnOnHomeButton()
+
+    /** Off hands Home back to the TV's own launcher, and Plume leaves it off until switched on again. */
+    private fun turnOffHomeButton() {
+        prefs.edit().putBoolean("home_off", true).apply()
+        HomeOverride.running?.disableSelf()
+        if (homeServiceOn() && checkSelfPermission(WRITE_SECURE) == PackageManager.PERMISSION_GRANTED) {
+            val me = ComponentName(this, HomeOverride::class.java)
+            val on = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+            Settings.Secure.putString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+                on.split(':').filter { ComponentName.unflattenFromString(it) != me }.joinToString(":"))
+        }
+        if (homeServiceOn()) {
+            Toast.makeText(this, "Turn off \"Plume: Home button\" in Settings → System → Accessibility", Toast.LENGTH_LONG).show()
+            openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        }
+        renderSettings(HOME_BUTTON_ROW)
+    }
+
     /** The Home key service is an accessibility service, which Android only lets the user switch on. */
     private fun turnOnHomeButton() {
-        if (homeServiceOn()) return
+        prefs.edit().remove("home_off").apply()
         ensureHomeService() // works where the adb permission was granted
         if (homeServiceOn()) return renderSettings(HOME_BUTTON_ROW)
         // The written path is the safety net: some Google TVs (a Xiaomi stick) answer the Accessibility link
@@ -362,8 +383,8 @@ class MainActivity : Activity() {
         if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME) && !roles.isRoleHeld(RoleManager.ROLE_HOME)) {
             @Suppress("DEPRECATION")
             startActivityForResult(roles.createRequestRoleIntent(RoleManager.ROLE_HOME), ROLE_REQUEST)
-        } else if (!isDefaultHome()) {
-            openSettings(Settings.ACTION_HOME_SETTINGS)
+        } else {
+            openSettings(Settings.ACTION_HOME_SETTINGS) // Android lets apps ask for Home, not give it back
         }
     }
 
@@ -715,6 +736,7 @@ class MainActivity : Activity() {
         val sort = prefs.getString("sort", "manual")!!
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!.size
         val weather = prefs.getString("weather", "off")!!
+        val unit = if (weather == "off") prefs.getString("wx_unit", "c")!! else weather
         val cwOff = prefs.getStringSet("cw_off", emptySet())!!.count { pkg -> apps.any { it.pkg == pkg } } // uninstalled ones don't count
         val rowHidden = rowHiddenSet().count { pkg -> apps.any { it.pkg == pkg } }
         val names = rowNames()
@@ -728,7 +750,7 @@ class MainActivity : Activity() {
             },
             Triple("Light mode wallpaper", wallpaperName(currentWallpaper(false))) { pickWallpaper(false) },
             Triple("Dark mode wallpaper", wallpaperName(currentWallpaper(true))) { pickWallpaper(true) },
-            Triple("Photo fade", if (wallpaperFade()) "On" else "Off") {
+            Triple("Photo fade", toggle(wallpaperFade())) {
                 prefs.edit().putBoolean("wp_fade", !wallpaperFade()).apply()
                 loadWallpaper()
                 renderSettings(4)
@@ -757,12 +779,20 @@ class MainActivity : Activity() {
                 renderSettings(10)
             },
             Triple("Continue Watching apps", if (cwOff == 0) "All on" else "$cwOff off") { pickWatchSources() },
-            Triple("Weather", mapOf("off" to "Off", "c" to "°C", "f" to "°F")[weather]!!) {
-                prefs.edit().putString("weather", mapOf("off" to "c", "c" to "f", "f" to "off")[weather]).apply()
+            // "weather" is off/c/f as before; "wx_unit" keeps the unit while it's off.
+            Triple("Weather", toggle(weather != "off")) {
+                if (weather == "off") prefs.edit().putString("weather", unit).apply()
+                else prefs.edit().putString("wx_unit", weather).putString("weather", "off").apply()
                 showWeather()
                 ui.removeCallbacks(weatherTick)
                 ui.post(weatherTick)
                 renderSettings(12)
+            },
+            Triple("Weather units", if (unit == "f") "°F" else "°C") {
+                val next = if (unit == "f") "c" else "f"
+                prefs.edit().putString("wx_unit", next).putString("weather", if (weather == "off") "off" else next).apply()
+                showWeather()
+                renderSettings(13)
             },
             Triple("Weather location", if (manualCity()) prefs.getString("geo_city", null) ?: "" else "Automatic") { pickCity() },
             Triple("Screensaver", when {
@@ -772,15 +802,15 @@ class MainActivity : Activity() {
             }) { pickScreensaver() },
             Triple("Test screensaver", "") { testScreensaver() },
             Triple("Screensaver timing", "") { openScreensaverSettings() },
-            Triple("Home button", if (homeServiceOn()) "On" else "Off: press to turn on") { turnOnHomeButton() },
-            Triple("Default launcher", if (isDefaultHome()) "Plume" else "Press to set") { makeDefaultHome() },
+            Triple("Home button", toggle(homeServiceOn())) { toggleHomeButton() },
+            Triple("Default launcher", if (isDefaultHome()) "Plume: press to change" else "Press to set") { makeDefaultHome() },
             Triple("Updates", when {
                 updating -> "Updating…"
                 checking -> "Checking…"
                 availableUpdate() != null -> "${availableUpdate()} available: press to update"
                 else -> "Up to date (${myVersion()})"
             }) { availableUpdate()?.let { installUpdate(it) } ?: checkUpdate(force = true) },
-            Triple("Lock layout", if (lockOn()) "On" else "Off") {
+            Triple("Lock layout", toggle(lockOn())) {
                 if (!lockOn()) return@Triple setLock()
                 prefs.edit().remove("lock_pin").apply()
                 renderSettings(LOCK_ROW)
@@ -961,12 +991,33 @@ class MainActivity : Activity() {
             isFocusable = true
             isClickable = true
             addView(label(title, 14f), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(label(value, 13f).apply { alpha = 0.6f })
+            if (value == TOGGLE_ON || value == TOGGLE_OFF) addView(switch(value == TOGGLE_ON), LinearLayout.LayoutParams(dp(36), dp(20)))
+            else addView(label(value, 13f).apply { alpha = 0.6f })
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
                 bg.colors = if (!focused) intArrayOf(0, 0) else if (dark) cardLit else intArrayOf(Color.WHITE, Color.WHITE)
             }
         }
+    }
+
+    private fun toggle(on: Boolean) = if (on) TOGGLE_ON else TOGGLE_OFF
+
+    /** A mono switch for on/off rows: filled track with the knob right when on, outlined and left when off. */
+    private fun switch(on: Boolean) = FrameLayout(this).apply {
+        val faint = fg and 0xFFFFFF or 0x66000000
+        background = GradientDrawable().apply {
+            cornerRadius = dp(10).toFloat()
+            if (on) setColor(fg) else setStroke(dp(2), faint)
+        }
+        addView(View(context).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(if (!on) faint else if (dark) 0xFF09090B.toInt() else Color.WHITE)
+            }
+        }, FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER_VERTICAL or if (on) Gravity.END else Gravity.START).apply {
+            marginStart = dp(3)
+            marginEnd = dp(3)
+        })
     }
 
     private fun showNet(caps: NetworkCapabilities?) {
@@ -2280,12 +2331,14 @@ class MainActivity : Activity() {
         const val TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
         const val WRITE_SECURE = "android.permission.WRITE_SECURE_SETTINGS"
         const val ROLE_REQUEST = 2
-        const val CITY_ROW = 13 // positions in the settings list (see renderSettings)
-        const val SCREENSAVER_ROW = 14
-        const val HOME_BUTTON_ROW = 17
-        const val DEFAULT_HOME_ROW = 18
-        const val UPDATE_ROW = 19
-        const val LOCK_ROW = 20
+        const val CITY_ROW = 14 // positions in the settings list (see renderSettings)
+        const val SCREENSAVER_ROW = 15
+        const val HOME_BUTTON_ROW = 18
+        const val DEFAULT_HOME_ROW = 19
+        const val UPDATE_ROW = 20
+        const val LOCK_ROW = 21
+        const val TOGGLE_ON = "\u0000on" // row values drawn as a switch instead of text
+        const val TOGGLE_OFF = "\u0000off"
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait
         const val UNLOCKED_MS = 5 * 60_000L
         const val UNLOCK_TO_EDIT = "Unlock to edit…"
