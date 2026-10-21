@@ -145,4 +145,27 @@
     <string name="theme_auto">Auto</string>
     <!-- Season and episode on a Continue Watching card, for example "S1 E3". -->
     <string name="season_episode">S%1$s E%2$s</string>
+    <!-- Home setup popups -->
+    <string name="setup_home">Set up Home button</string>
+    <string name="preview_home_setup">Preview Home setup popups</string>
+    <string name="setup_step">Step %1$d of 3</string>
+    <string name="setup_role_title">Make Plume your home screen</string>
+    <string name="setup_role_body">Android will ask which app to use as your home screen. Choose Plume.</string>
+    <string name="setup_test_title">Press Home on your remote</string>
+    <string name="setup_test_body">Plume checks that Home brings you back here. If another home screen opens instead, open Plume again from your apps and setup will try the next way.</string>
+    <string name="setup_service_title">Turn on Plume\'s Home button</string>
+    <string name="setup_service_body">Accessibility settings will open. Select \"Plume: Home button\", turn it on, then press Back to come back here.</string>
+    <string name="setup_adb_title">Unlock it once with ADB</string>
+    <string name="setup_adb_body">This TV blocks the Home button switch for apps installed outside the Play Store. Turn on network debugging in Developer options, then run these from a computer or a phone ADB app. Plume does the rest.</string>
+    <string name="setup_scan_help">Step-by-step help</string>
+    <string name="setup_done_title">Home is set</string>
+    <string name="setup_done_body">Home on your remote now opens Plume.</string>
+    <string name="setup_done_body_service">Home on your remote now opens Plume. Hold Home for the Google TV dashboard.</string>
+    <string name="setup_continue">Continue</string>
+    <string name="setup_not_now">Not now</string>
+    <string name="setup_skip_check">Skip this check</string>
+    <string name="setup_open_accessibility">Open Accessibility</string>
+    <string name="setup_try_again">Try again</string>
+    <string name="setup_close">Close</string>
+    <string name="setup_done">Done</string>
 </resources>
