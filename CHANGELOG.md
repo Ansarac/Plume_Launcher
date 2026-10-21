@@ -20,6 +20,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - After an update, a card shows what is new. Select **See all changes** to read all of it.
 - Every HDMI input can be a tile. A device that names itself, like a PS5, Xbox or Nintendo Switch, gets a tile with its logo. Other HDMI devices get a tile while they send a picture. Every HDMI input is in **All apps**. Hold OK on one to pin it to the row.
 - The menu that opens when you hold OK is now only as wide as its longest item. Near the right edge of the screen it stays inside the side margin.
+- After the TV starts, the focus is on the first app in the row, not on the network icon.
 - Continue Watching is no longer limited to 3 shows for each app. Each app keeps 3 places near the front. More shows from an app come after them, up to 20 in total.
 - You can set the weather location by hand. Select **Plume settings → Weather location**.
 - **Plume settings → Home button** is now a switch. Use it to turn the Home button on or off.
