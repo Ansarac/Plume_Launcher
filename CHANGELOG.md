@@ -15,6 +15,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- The menu that opens when you hold OK is now only as wide as its longest item. Near the right edge of the screen it stays inside the side margin.
 - You can set the weather location by hand. Select **Plume settings → Weather location**.
 - **Plume settings → Home button** is now a switch. Use it to turn the Home button on or off.
 - All the text in Plume is now in one file. This makes translation easier.
