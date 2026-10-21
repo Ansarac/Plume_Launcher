@@ -28,6 +28,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - At the top of a list, push Up to go to the bottom.
 - Plume settings opens at the section that you used last.
 - Dark mode stays dark. The selected item in settings, menus and popups is easier to see.
+- In **All apps**, the tile in the first or last column is no longer cut off when you select it.
 
 ## 1.3
 
