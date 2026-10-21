@@ -21,6 +21,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - All the text in Plume is now in one file. This makes translation easier.
 - A guided setup makes the Home button open Plume. To do it again, select **Plume settings → Set up Home button**.
 - A red dot on the Plume settings icon tells you about a new update or new update notes.
+- When you move quickly along the app row, Plume shows an app's name only when you reach that app.
 - **Plume settings → Updates** shows what is new in this version.
 - You can put a short app row on the left, in the centre or on the right. Select **Plume settings → App row → App row position**.
 - **Plume settings** has sections. Each section shows its current settings.
