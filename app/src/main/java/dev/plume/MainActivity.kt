@@ -44,6 +44,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.Settings
+import android.text.InputType
 import android.text.TextUtils
 import android.util.LruCache
 import android.view.Gravity
@@ -51,6 +52,9 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.ImageView
@@ -64,6 +68,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Calendar
@@ -759,6 +764,7 @@ class MainActivity : Activity() {
                 ui.post(weatherTick)
                 renderSettings(12)
             },
+            Triple("Weather location", if (manualCity()) prefs.getString("geo_city", null) ?: "" else "Automatic") { pickCity() },
             Triple("Screensaver", when {
                 downloading -> "Downloading Gallery…"
                 !galleryOn() -> screensaverName()
@@ -1291,7 +1297,8 @@ class MainActivity : Activity() {
             }
         }
         // The settings panel is a vertical list: don't let Left/Right leak focus to the home screen behind it.
-        if (settingsScrim.visibility == View.VISIBLE && currentFocus !== pinBox &&
+        // The PIN boxes and the city search box use them themselves.
+        if (settingsScrim.visibility == View.VISIBLE && currentFocus !== pinBox && currentFocus !is EditText &&
             (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
         ) return true
         if (editing && editKey(e, confirm)) return true
@@ -1800,7 +1807,7 @@ class MainActivity : Activity() {
         if (System.currentTimeMillis() - prefs.getLong("wx_time", 0) < 25 * 60_000L) return
         io.execute {
             try {
-                if (System.currentTimeMillis() - prefs.getLong("geo_time", 0) > 6 * 3600_000L) {
+                if (!manualCity() && System.currentTimeMillis() - prefs.getLong("geo_time", 0) > 6 * 3600_000L) {
                     val geo = getJson("https://ipwho.is/?fields=success,city,latitude,longitude")
                     if (geo.optBoolean("success")) prefs.edit()
                         .putString("geo_city", geo.getString("city"))
@@ -1818,6 +1825,87 @@ class MainActivity : Activity() {
                 ui.post { showWeather() }
             } catch (e: Exception) {
                 android.util.Log.w("TvHome", "weather failed ($e)") // keep the last reading; next tick retries
+            }
+        }
+    }
+
+    // An IP's location is wherever the provider routes it, sometimes a whole region off (Rome showing as
+    // Sicily), so you can pick the city instead. Open-Meteo's geocoding, also free and keyless.
+
+    private fun manualCity() = prefs.getBoolean("geo_manual", false)
+
+    private class City(val name: String, val where: String, val lat: Float, val lon: Float)
+
+    /** Automatic first, then the search box; a search lists what it found under them. */
+    private fun pickCity(query: String = "", found: List<City>? = null, status: String = "") {
+        val field = EditText(this).apply {
+            id = View.generateViewId()
+            setText(query)
+            setSelection(query.length)
+            hint = "Type a city, then Search"
+            textSize = 14f
+            setTextColor(fg)
+            setHintTextColor(Color.argb(120, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            isSingleLine = true
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            setPadding(dp(14), 0, dp(14), 0)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(8).toFloat()
+                setStroke(dp(1), Color.argb(80, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            }
+            setOnEditorActionListener { v, _, _ -> searchCity(v.text.toString().trim()); true }
+        }
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(4), 0, 0)
+            addView(field, LinearLayout.LayoutParams(MATCH_PARENT, dp(44)))
+            if (status.isNotEmpty()) addView(label(status, 12f).apply { alpha = 0.6f; setPadding(dp(14), dp(8), 0, 0) })
+        }
+        val rows = listOf(page("Automatic (from your internet address)", if (manualCity()) "" else CHOSEN) {
+            prefs.edit().remove("geo_manual").remove("geo_time").remove("wx_time").apply()
+            refreshWeather()
+            renderSettings(CITY_ROW)
+        }) + found.orEmpty().map { c ->
+            page(c.name, c.where) {
+                prefs.edit().putBoolean("geo_manual", true).putString("geo_city", c.name)
+                    .putFloat("geo_lat", c.lat).putFloat("geo_lon", c.lon).remove("wx_time").apply()
+                refreshWeather()
+                renderSettings(CITY_ROW)
+            }
+        }
+        showPage("Weather location", rows, if (found.isNullOrEmpty()) 0 else 1, top = top) { renderSettings(CITY_ROW) }
+        // showPage pins Up on the first row to itself; here Up goes to the search box.
+        settingsList.getChildAt(1).nextFocusUpId = field.id
+        if (found.isNullOrEmpty()) field.requestFocus()
+        // Results in: put the keyboard away, it would cover them.
+        else getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(field.windowToken, 0)
+    }
+
+    private fun searchCity(query: String) {
+        if (query.isEmpty()) return
+        pickCity(query, status = "Searching…")
+        io.execute {
+            val found = try {
+                val r = getJson("https://geocoding-api.open-meteo.com/v1/search?count=8&format=json" +
+                    "&language=${java.util.Locale.getDefault().language}&name=${URLEncoder.encode(query, "UTF-8")}")
+                val list = r.optJSONArray("results")
+                (0 until (list?.length() ?: 0)).map { i ->
+                    val c = list!!.getJSONObject(i)
+                    City(c.getString("name"), listOf(c.optString("admin1"), c.optString("country")).filter { it.isNotEmpty() }.joinToString(", "),
+                        c.getDouble("latitude").toFloat(), c.getDouble("longitude").toFloat())
+                }
+            } catch (e: Exception) {
+                null
+            }
+            ui.post {
+                // Only if the page is still open: Back may have left it while the search ran.
+                if (settingsScrim.visibility != View.VISIBLE || findViewById<TextView>(R.id.settingsTitle).text.toString() != "Weather location") return@post
+                when {
+                    found == null -> pickCity(query, status = "Couldn't search. Check the connection and try again.")
+                    found.isEmpty() -> pickCity(query, status = "No places called \"$query\".")
+                    else -> pickCity(query, found)
+                }
             }
         }
     }
@@ -2192,11 +2280,12 @@ class MainActivity : Activity() {
         const val TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
         const val WRITE_SECURE = "android.permission.WRITE_SECURE_SETTINGS"
         const val ROLE_REQUEST = 2
-        const val SCREENSAVER_ROW = 13 // positions in the settings list (see renderSettings)
-        const val HOME_BUTTON_ROW = 16
-        const val DEFAULT_HOME_ROW = 17
-        const val UPDATE_ROW = 18
-        const val LOCK_ROW = 19
+        const val CITY_ROW = 13 // positions in the settings list (see renderSettings)
+        const val SCREENSAVER_ROW = 14
+        const val HOME_BUTTON_ROW = 17
+        const val DEFAULT_HOME_ROW = 18
+        const val UPDATE_ROW = 19
+        const val LOCK_ROW = 20
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait
         const val UNLOCKED_MS = 5 * 60_000L
         const val UNLOCK_TO_EDIT = "Unlock to edit…"
