@@ -15,6 +15,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- Continue Watching is no longer limited to 3 shows for each app. Each app keeps 3 places near the front. More shows from an app come after them, up to 20 in total.
 - You can set the weather location by hand. Select **Plume settings → Weather location**.
 - **Plume settings → Home button** is now a switch. Use it to turn the Home button on or off.
 - All the text in Plume is now in one file. This makes translation easier.
