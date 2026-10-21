@@ -710,11 +710,13 @@ class MainActivity : Activity() {
         val h = bmp.height.toFloat()
         val base = ground and 0x00FFFFFF
         if (wallpaperFade()) Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h, Paint().apply {
+            isDither = true
             shader = LinearGradient(0f, h * 0.28f, 0f, h * 0.5f, base, base or 0xE6000000.toInt(), Shader.TileMode.CLAMP)
         })
         // Photos rarely have the bundled ones' empty sky: a soft veil behind the clock and top-bar icons keeps them readable.
         // Strong over the clock and icons (top ~20%), gone by 30% so the photo still shows above the apps.
         Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h * 0.3f, Paint().apply {
+            isDither = true
             shader = LinearGradient(0f, 0f, 0f, h * 0.3f, intArrayOf(base or 0xC0000000.toInt(), base or 0xA0000000.toInt(), base),
                 floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
         })
@@ -2650,9 +2652,11 @@ class MainActivity : Activity() {
         val sheen = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x40FFFFFF, 0x00FFFFFF)).apply {
             cornerRadius = radius.toFloat()
             alpha = 0
+            setDither(true)
         }
         val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (card) cardRest else intArrayOf(0, 0)).apply {
             cornerRadius = radius.toFloat()
+            setDither(true)
         }
         v.background = if (dark && card) rimCard(radius, false) else bg
         if (!dark) v.foreground = sheen
@@ -2683,6 +2687,7 @@ class MainActivity : Activity() {
         val body = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (lit) DARK_CARD_LIT else DARK_CARD).apply {
             cornerRadius = radius.toFloat()
             setStroke(1, if (lit) RIM_SIDE_LIT else RIM_SIDE) // 1px, not 1dp: a hairline stays crisp
+            setDither(true) // near black the gradient has ~8 steps; dithered, they don't show as bands
         }
         return LayerDrawable(arrayOf(body, ColorDrawable(if (lit) RIM_TOP_LIT else RIM_TOP))).apply {
             setLayerGravity(1, Gravity.TOP or Gravity.FILL_HORIZONTAL)
