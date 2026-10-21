@@ -147,6 +147,7 @@ Plume has no analytics, no ads and no account. It only connects to the internet 
 - load poster images for your Continue Watching items
 - check this repository's GitHub releases for a new version, once a day, and download it when you choose to update
 - download the Gallery paintings from this repository, **only if you choose that screensaver**
+- get the Bing picture of the day (300 KB to 1 MB), **only if you choose it as your wallpaper**. Plume sends a request to [bing.com](https://www.bing.com) once a day while it is open. Bing sees the TV's IP address. Plume keeps one picture and deletes it when you choose another wallpaper.
 - fetch the weather, **only if you turn it on**. It looks up your approximate location from your IP address via [ipwho.is](https://ipwho.is), then gets the forecast from [Open-Meteo](https://open-meteo.com).
 
 **Add from phone…** runs a small upload page on the TV itself, reachable only on your home network and only while that screen is open. Photos go straight from your phone to the TV and nowhere else.
