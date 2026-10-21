@@ -2,6 +2,7 @@ package dev.plume
 
 import android.animation.ObjectAnimator
 import android.app.Activity
+import android.app.Dialog
 import android.app.PendingIntent
 import android.app.role.RoleManager
 import android.content.BroadcastReceiver
@@ -13,6 +14,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageInstaller
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -21,11 +23,13 @@ import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
+import android.graphics.Typeface
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ClipDrawable
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
@@ -51,6 +55,7 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -219,9 +224,9 @@ class MainActivity : Activity() {
             prefs.edit().remove("reopen_settings").apply()
             ui.post { openLauncherSettings(focus = 1) }
         } else if (!homeServiceOn() && !prefs.getBoolean("setup_shown", false)) {
-            // Fresh install: open settings on the Home button row, the one step that has to happen by hand.
+            // Fresh install: walk through making Home land on Plume, the one step that has to happen by hand.
             prefs.edit().putBoolean("setup_shown", true).apply()
-            ui.post { openLauncherSettings(focus = HOME_BUTTON_ROW) }
+            ui.post { startHomeSetup() }
         }
 
         registerReceiver(packageReceiver, IntentFilter().apply {
@@ -243,6 +248,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         ensureHomeService()
+        homeSetupResumed()
         if (wantDark() != dark) {
             recreate()
             return
@@ -277,6 +283,10 @@ class MainActivity : Activity() {
     @Deprecated("Only used for the default-home role request")
     override fun onActivityResult(code: Int, result: Int, data: Intent?) {
         if (code == ROLE_REQUEST && settingsScrim.visibility == View.VISIBLE) renderSettings(DEFAULT_HOME_ROW)
+        if (code == ROLE_REQUEST && setupStep == 1) {
+            setupStep = 0
+            afterHomeRole()
+        }
     }
 
     override fun onPause() {
@@ -289,6 +299,7 @@ class MainActivity : Activity() {
 
     override fun onStop() {
         unlockedUntil = 0L // leaving the home screen locks it again (onPause would also fire for permission dialogs)
+        if (homeTest != 0) leftDuringTest = true
         super.onStop()
     }
 
@@ -355,6 +366,11 @@ class MainActivity : Activity() {
         // The written path is the safety net: some Google TVs (a Xiaomi stick) answer the Accessibility link
         // with "You don't have an app that can do this", which we can't detect from here.
         Toast.makeText(this, getString(R.string.home_on_hint), Toast.LENGTH_LONG).show()
+        openHomeServiceSettings()
+    }
+
+    /** False when no Settings screen opened at all. */
+    private fun openHomeServiceSettings(): Boolean {
         val service = ComponentName(this, HomeOverride::class.java).flattenToString()
         val tries = listOf(
             // Straight to our own toggle (Android 12+, where the TV supports it), then the list, then Settings.
@@ -364,10 +380,12 @@ class MainActivity : Activity() {
         )
         for (intent in tries) {
             try {
-                return startActivity(intent) // not resolveActivity(): Android 11+ hides other apps from that
+                startActivity(intent) // not resolveActivity(): Android 11+ hides other apps from that
+                return true
             } catch (e: Exception) {
             }
         }
+        return false
     }
 
     private fun isDefaultHome() = Build.VERSION.SDK_INT >= 29 &&
@@ -388,10 +406,167 @@ class MainActivity : Activity() {
         }
     }
 
+    // ---------- Home setup ----------
+    // Popups that try each way of making Home land on Plume, stopping at the first that works: the default-home
+    // role, then the Home button service, then adb help for TVs that grey out the service (Android 13+
+    // "restricted settings" for sideloaded apps). Each way is checked by asking for a Home press: one that
+    // reaches us arrives as a Home intent; one that doesn't sends us to the background.
+
+    private var setupDialog: Dialog? = null
+    private var setupStep = 0 // 1 role dialog open, 2 Accessibility settings open
+    private var homeTest = 0 // the way being checked (1 role, 2 service) while waiting for a Home press
+    private var leftDuringTest = false
+    private var previewAt = -1 // debug builds: which popup the preview is on, -1 when not previewing
+
+    private fun startHomeSetup() {
+        val roles = if (Build.VERSION.SDK_INT >= 29) getSystemService(RoleManager::class.java) else null
+        if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME) && !roles.isRoleHeld(RoleManager.ROLE_HOME)) rolePopup()
+        else afterHomeRole()
+    }
+
+    private fun afterHomeRole() = if (isDefaultHome() || homeServiceOn()) testPopup(1) else tryHomeService()
+
+    private fun tryHomeService() {
+        prefs.edit().remove("home_off").apply()
+        ensureHomeService() // works where the adb permission was granted
+        if (homeServiceOn()) testPopup(2) else servicePopup()
+    }
+
+    /** Back from the role dialog, Accessibility settings, or another home screen after a Home press. */
+    private fun homeSetupResumed() {
+        if (setupStep == 2) {
+            setupStep = 0
+            if (homeServiceOn()) testPopup(2) else adbPopup()
+        } else if (homeTest != 0 && leftDuringTest) {
+            val failed = homeTest
+            homeTest = 0
+            if (failed == 1) tryHomeService() else adbPopup()
+        }
+    }
+
+    private fun rolePopup() = homePopup(1, getString(R.string.setup_role_title), getString(R.string.setup_role_body), null,
+        getString(R.string.setup_continue) to {
+            setupStep = 1
+            @Suppress("DEPRECATION")
+            startActivityForResult(getSystemService(RoleManager::class.java).createRequestRoleIntent(RoleManager.ROLE_HOME), ROLE_REQUEST)
+        },
+        getString(R.string.setup_not_now) to { setupDialog?.dismiss() })
+
+    private fun testPopup(way: Int) {
+        if (previewAt < 0) {
+            homeTest = way
+            leftDuringTest = false
+        }
+        homePopup(way, getString(R.string.setup_test_title), getString(R.string.setup_test_body), null,
+            getString(R.string.setup_skip_check) to { homeTest = 0; if (way == 1) tryHomeService() else adbPopup() })
+    }
+
+    private fun servicePopup() = homePopup(2, getString(R.string.setup_service_title), getString(R.string.setup_service_body), null,
+        getString(R.string.setup_open_accessibility) to {
+            setupStep = 2
+            if (!openHomeServiceSettings()) {
+                setupStep = 0
+                adbPopup()
+            }
+        },
+        getString(R.string.setup_not_now) to { setupDialog?.dismiss() })
+
+    /** The one-time grant lets Plume switch the service on itself, past the greyed-out toggle. */
+    private fun adbPopup() {
+        val mono = Typeface.MONOSPACE
+        val code = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(10).toFloat()
+                setColor(if (dark) 0xFF09090B.toInt() else 0xFFE9EBEF.toInt())
+            }
+            listOfNotNull(lanAddress()?.let { "adb connect $it:5555" }, "adb shell pm grant $packageName $WRITE_SECURE").forEach {
+                addView(label(it, 12f).apply { typeface = mono; maxLines = 2; ellipsize = null; setPadding(0, dp(2), 0, dp(2)) })
+            }
+        }
+        val qr = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            addView(ImageView(context).apply { setImageBitmap(qrBitmap(HELP_URL, dp(108))) }, LinearLayout.LayoutParams(dp(108), dp(108)))
+            addView(label(getString(R.string.setup_scan_help), 11f).apply { alpha = 0.6f; setPadding(0, dp(6), 0, 0) })
+        }
+        val extra = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(12), 0, 0)
+            addView(code, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(qr, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(20) })
+        }
+        homePopup(3, getString(R.string.setup_adb_title), getString(R.string.setup_adb_body), extra,
+            getString(R.string.setup_try_again) to { tryHomeService() },
+            getString(R.string.setup_close) to { setupDialog?.dismiss() })
+    }
+
+    private fun donePopup() = homePopup(0, getString(R.string.setup_done_title),
+        getString(if (homeServiceOn()) R.string.setup_done_body_service else R.string.setup_done_body), null,
+        getString(R.string.setup_done) to { setupDialog?.dismiss() })
+
+    /** A card in the middle of the screen over the dimmed home screen, in the hold menus' colours. */
+    private fun homePopup(step: Int, title: String, body: String, extra: View?, vararg buttons: Pair<String, () -> Unit>) {
+        setupDialog?.let { setupDialog = null; it.dismiss() } // replaced, not closed: the dismiss listener leaves the flow alone
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(28), dp(24), dp(28), dp(20))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(16).toFloat()
+                setColor(if (dark) 0xFF141418.toInt() else 0xFFF7F8FA.toInt())
+            }
+            if (step > 0) addView(label(getString(R.string.setup_step, step), 12f).apply { alpha = 0.6f })
+            addView(label(title, 22f).apply { setTypeface(typeface, Typeface.BOLD); setPadding(0, dp(4), 0, 0) })
+            addView(label(body, 14f).apply { maxLines = 6; alpha = 0.8f; setLineSpacing(0f, 1.15f); setPadding(0, dp(10), 0, 0) })
+            extra?.let { addView(it) }
+            buttons.forEachIndexed { i, (name, action) ->
+                addView(settingsRow(name, "") { if (previewAt >= 0) previewHomeSetup(previewAt + 1) else action() },
+                    LinearLayout.LayoutParams(MATCH_PARENT, dp(44)).apply { topMargin = if (i == 0) dp(20) else dp(4) })
+            }
+        }
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(card)
+        dialog.window?.run {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setLayout(dp(if (extra != null) 600 else 480), ViewGroup.LayoutParams.WRAP_CONTENT)
+            setDimAmount(0.6f)
+        }
+        dialog.setOnDismissListener {
+            if (setupDialog !== dialog) return@setOnDismissListener
+            setupDialog = null // closed with Back or a button: setup stops here, and Settings can start it again
+            setupStep = 0
+            homeTest = 0
+            previewAt = -1
+        }
+        setupDialog = dialog
+        dialog.show()
+        card.getChildAt(card.childCount - buttons.size).requestFocus()
+    }
+
+    /** Debug builds: every popup in turn, with buttons that only move on, to check the look on a TV. */
+    private fun previewHomeSetup(at: Int = 0) {
+        previewAt = at
+        when (at) {
+            0 -> rolePopup()
+            1 -> testPopup(1)
+            2 -> servicePopup()
+            3 -> adbPopup()
+            4 -> donePopup()
+            else -> setupDialog?.dismiss()
+        }
+    }
+
     /** Home pressed while already home: close whatever is open and go back to the start of the apps row. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == UPDATE_STATUS) return installStatus(intent)
+        if (homeTest != 0 && intent.hasCategory(Intent.CATEGORY_HOME)) { // the Home press reached us: setup works
+            homeTest = 0
+            return donePopup()
+        }
         if (editing) endEdit()
         if (settingsScrim.visibility == View.VISIBLE) closeLauncherSettings()
         if (allApps.visibility == View.VISIBLE) closeAllApps()
@@ -802,6 +977,7 @@ class MainActivity : Activity() {
             }) { pickScreensaver() },
             Triple(getString(R.string.test_screensaver), "") { testScreensaver() },
             Triple(getString(R.string.screensaver_timing), "") { openScreensaverSettings() },
+            Triple(getString(R.string.setup_home), "") { closeLauncherSettings(); startHomeSetup() },
             Triple(getString(R.string.home_button), toggle(homeServiceOn())) { toggleHomeButton() },
             Triple(getString(R.string.default_launcher), if (isDefaultHome()) getString(R.string.plume_press_change) else getString(R.string.press_to_set)) { makeDefaultHome() },
             Triple(getString(R.string.updates), when {
@@ -815,6 +991,9 @@ class MainActivity : Activity() {
                 prefs.edit().remove("lock_pin").apply()
                 renderSettings(LOCK_ROW)
             },
+        ) + listOfNotNull(
+            if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) null
+            else Triple(getString(R.string.preview_home_setup), "") { closeLauncherSettings(); previewHomeSetup() },
         )
         showPage(getString(R.string.plume_settings), rows, focus, back = null)
     }
@@ -2333,10 +2512,11 @@ class MainActivity : Activity() {
         const val ROLE_REQUEST = 2
         const val CITY_ROW = 14 // positions in the settings list (see renderSettings)
         const val SCREENSAVER_ROW = 15
-        const val HOME_BUTTON_ROW = 18
-        const val DEFAULT_HOME_ROW = 19
-        const val UPDATE_ROW = 20
-        const val LOCK_ROW = 21
+        const val HOME_BUTTON_ROW = 19
+        const val DEFAULT_HOME_ROW = 20
+        const val UPDATE_ROW = 21
+        const val LOCK_ROW = 22
+        const val HELP_URL = "https://github.com/aradhyas8/Plume_Launcher#home-button-on-android-13-and-newer"
         const val TOGGLE_ON = "\u0000on" // row values drawn as a switch instead of text
         const val TOGGLE_OFF = "\u0000off"
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait

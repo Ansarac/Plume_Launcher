@@ -84,6 +84,21 @@ This lets Plume:
 
 Everything else works without it.
 
+### Home button on Android 13 and newer
+
+Android 13 and newer grey out the Accessibility switch for apps installed outside the Play Store, and most Google TV builds hide the **Allow restricted settings** menu that would unlock it. If Plume's setup reaches the ADB step, unlock it once from a computer (or a phone ADB app) on the same network:
+
+1. On the TV, open **Settings → System → About** and press **Android TV OS build** seven times to turn on Developer options.
+2. In **Settings → System → Developer options**, turn on **Network debugging** (called **USB debugging** on some TVs).
+3. Run these, using the address Plume shows:
+
+   ```sh
+   adb connect <tv-address>:5555
+   adb shell pm grant dev.plume android.permission.WRITE_SECURE_SETTINGS
+   ```
+
+4. Accept the debugging prompt on the TV, then choose **Try again** in Plume. Plume turns its Home button service on by itself.
+
 ## Using Plume
 
 | Action | How |

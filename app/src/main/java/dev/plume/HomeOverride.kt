@@ -38,7 +38,8 @@ class HomeOverride : AccessibilityService() {
         ) goHome()
     }
 
-    private fun goHome() = startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    // Marked as Home so the setup check can tell it from Plume being opened from the apps list.
+    private fun goHome() = startActivity(Intent(this, MainActivity::class.java).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 
     override fun onInterrupt() {}
 
