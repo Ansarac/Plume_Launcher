@@ -259,6 +259,8 @@ class MainActivity : Activity() {
             // Fresh install: walk through making Home land on Plume, the one step that has to happen by hand.
             prefs.edit().putBoolean("setup_shown", true).apply()
             ui.post { startHomeSetup() }
+        } else if (notesUnseen()) {
+            ui.post { whatsNewCard() } // after an update; the self-updater reopens Plume, so it's seen right away
         }
 
         registerReceiver(packageReceiver, IntentFilter().apply {
@@ -536,12 +538,39 @@ class MainActivity : Activity() {
             getString(R.string.setup_close) to { setupDialog?.dismiss() })
     }
 
+    /**
+     * Once after an update: the first three CHANGELOG.md lines of this version, so put the best ones first.
+     * Closing it counts as reading the notes, which clears the dot on the Plume settings icon.
+     */
+    private fun whatsNewCard() {
+        prefs.edit().putString("seen_notes", myVersion()).apply()
+        updateBadge()
+        val notes = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            getString(R.string.whats_new).split('\n').take(3).forEach {
+                addView(label("", 15f).apply {
+                    text = SpannableString(it).apply { setSpan(BulletSpan(dp(10), fg), 0, it.length, 0) }
+                    maxLines = Int.MAX_VALUE
+                    ellipsize = null
+                    setLineSpacing(0f, 1.15f)
+                    setPadding(0, dp(12), 0, 0)
+                })
+            }
+        }
+        homePopup(0, getString(R.string.whats_new_card_title, myVersion()), null, notes,
+            getString(R.string.done) to { setupDialog?.dismiss() },
+            getString(R.string.see_all_changes) to {
+                setupDialog?.dismiss()
+                unlock { openLauncherSettings(R.string.updates); showUpdates() }
+            })
+    }
+
     private fun donePopup() = homePopup(0, getString(R.string.setup_done_title),
         getString(if (homeServiceOn()) R.string.setup_done_body_service else R.string.setup_done_body), null,
         getString(R.string.setup_done) to { setupDialog?.dismiss() })
 
     /** A card in the middle of the screen over the dimmed home screen, in the hold menus' colours. */
-    private fun homePopup(step: Int, title: String, body: String, extra: View?, vararg buttons: Pair<String, () -> Unit>) {
+    private fun homePopup(step: Int, title: String, body: String?, extra: View?, vararg buttons: Pair<String, () -> Unit>) {
         setupDialog?.let { setupDialog = null; it.dismiss() } // replaced, not closed: the dismiss listener leaves the flow alone
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -552,7 +581,7 @@ class MainActivity : Activity() {
             }
             if (step > 0) addView(label(getString(R.string.setup_step, step), 12f).apply { secondary(0.6f) })
             addView(label(title, 22f).apply { setTypeface(typeface, Typeface.BOLD); setPadding(0, dp(4), 0, 0) })
-            addView(label(body, 14f).apply { maxLines = 6; secondary(0.8f); setLineSpacing(0f, 1.15f); setPadding(0, dp(10), 0, 0) })
+            body?.let { addView(label(it, 14f).apply { maxLines = 6; secondary(0.8f); setLineSpacing(0f, 1.15f); setPadding(0, dp(10), 0, 0) }) }
             extra?.let { addView(it) }
             buttons.forEachIndexed { i, (name, action) ->
                 addView(settingsRow(name, "") { if (previewAt >= 0) previewHomeSetup(previewAt + 1) else action() },
@@ -1790,16 +1819,23 @@ class MainActivity : Activity() {
             }
             elevation = if (dark) 0f else dp(8).toFloat()
         }
-        val menu = PopupWindow(list, dp(260), LinearLayout.LayoutParams.WRAP_CONTENT, true)
+        val menu = PopupWindow(list, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true)
         items.forEachIndexed { i, (name, action) ->
-            list.addView(settingsRow(name, "") { menu.dismiss(); action() }, LinearLayout.LayoutParams(MATCH_PARENT, dp(40)).apply {
+            list.addView(settingsRow(name, "") { menu.dismiss(); action() }, LinearLayout.LayoutParams(MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 if (i > 0) topMargin = dp(2)
             })
+            list.getChildAt(i).minimumHeight = dp(40)
         }
+        // As wide as the longest item, never narrower than the tile or card it opens from.
+        // A very long translation wraps onto two lines instead of stretching across the screen.
         list.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        menu.width = list.measuredWidth.coerceIn(anchor.width, maxOf(anchor.width, dp(360)))
+        list.measure(View.MeasureSpec.makeMeasureSpec(menu.width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
         val at = IntArray(2).also { anchor.getLocationInWindow(it) }
         menu.elevation = if (dark) 0f else dp(8).toFloat()
-        menu.showAtLocation(anchor, Gravity.NO_GRAVITY, at[0], maxOf(dp(8), at[1] - list.measuredHeight - dp(8)))
+        // Over the anchor's left edge, but kept inside the row's 48 dp side margin near the right of the screen.
+        val x = minOf(at[0], resources.displayMetrics.widthPixels - dp(48) - menu.width)
+        menu.showAtLocation(anchor, Gravity.NO_GRAVITY, x, maxOf(dp(8), at[1] - list.measuredHeight - dp(8)))
         list.getChildAt(0).requestFocus()
     }
 
