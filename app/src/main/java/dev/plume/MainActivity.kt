@@ -112,10 +112,14 @@ internal fun folderPhotos(cr: ContentResolver, choice: String): List<Long> =
     cr.query(PHOTOS, arrayOf(MediaStore.Images.Media._ID), "${MediaStore.Images.Media.BUCKET_ID} = ?", arrayOf(choice.split(':')[1]), null)
         ?.use { c -> List(c.count) { c.moveToNext(); c.getLong(0) } } ?: emptyList()
 
-/** Newest first across apps (ties keep their order), at most [perApp] per app: one app's ten shows can't bury the rest. */
+/**
+ * Newest first across apps (ties keep their order), each app's [perApp] newest ahead of the rest: one app's ten
+ * shows can't bury the others. The rest follow, newest first, so an app on its own isn't held to [perApp].
+ */
 internal fun <T> newestPerApp(items: List<Pair<Long, T>>, perApp: Int, app: (T) -> String?): List<T> {
     val shown = HashMap<String?, Int>()
-    return items.sortedByDescending { it.first }.map { it.second }.filter { shown.merge(app(it), 1, Int::plus)!! <= perApp }
+    val (front, rest) = items.sortedByDescending { it.first }.map { it.second }.partition { shown.merge(app(it), 1, Int::plus)!! <= perApp }
+    return front + rest
 }
 
 /** Layout lock PIN, stored as "salt:sha256". Keeps it out of plain sight in a prefs backup; not real security. */
@@ -2409,7 +2413,7 @@ class MainActivity : Activity() {
      *    progress and an autoPlay resume link) instead of using Watch Next, so signing in to Stremio
      *    on the TV is all it takes. Channel rows carry no timestamps, so they use the time the app was
      *    last opened from Plume, keeping the app's own order among themselves.
-     * Newest first across apps, at most [PER_APP] each, so one app with ten shows can't bury the others.
+     * Newest first across apps, each app's [PER_APP] newest ahead of the rest, so one app with ten shows can't bury the others.
      */
     private fun queryWatchNext(): List<Prog> {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!
@@ -2772,7 +2776,7 @@ class MainActivity : Activity() {
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait
         const val UNLOCKED_MS = 5 * 60_000L
         const val MEDIA_REQUEST = 3
-        const val PER_APP = 3 // Continue Watching items per app
+        const val PER_APP = 3 // Continue Watching items per app ahead of the rest
         val READ_PHOTOS = if (Build.VERSION.SDK_INT >= 33) "android.permission.READ_MEDIA_IMAGES" else "android.permission.READ_EXTERNAL_STORAGE"
         /** Minutes between folder photos. */
         val PHOTO_EVERY = linkedMapOf(
