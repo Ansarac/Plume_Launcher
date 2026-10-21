@@ -16,6 +16,8 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- **Android 8:** Plume opens on Android 8.0 and 8.1. Before, it closed immediately after it opened.
+
 ## 1.4
 
 ### Smaller
