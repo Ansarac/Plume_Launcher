@@ -44,6 +44,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.Settings
+import android.text.InputType
 import android.text.TextUtils
 import android.util.LruCache
 import android.view.Gravity
@@ -51,6 +52,9 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.ImageView
@@ -64,6 +68,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Calendar
@@ -304,10 +309,12 @@ class MainActivity : Activity() {
 
     /**
      * Android drops our Home service from the enabled accessibility services whenever the app is
-     * force-stopped, and then Home lands on Google TV. Put it back (needs the adb-granted permission).
+     * force-stopped, and then Home lands on Google TV. Put it back (needs the adb-granted permission),
+     * unless the user turned it off.
      */
     private fun ensureHomeService() {
-        if (checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED || homeServiceOn()) return
+        if (homeServiceOn()) return prefs.edit().remove("home_off").apply() // what Android says wins
+        if (prefs.getBoolean("home_off", false) || checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED) return
         val me = ComponentName(this, HomeOverride::class.java).flattenToString()
         val on = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
         Settings.Secure.putString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, if (on.isEmpty()) me else "$on:$me")
@@ -321,9 +328,28 @@ class MainActivity : Activity() {
             .split(':').any { ComponentName.unflattenFromString(it) == me }
     }
 
+    private fun toggleHomeButton() = if (homeServiceOn()) turnOffHomeButton() else turnOnHomeButton()
+
+    /** Off hands Home back to the TV's own launcher, and Plume leaves it off until switched on again. */
+    private fun turnOffHomeButton() {
+        prefs.edit().putBoolean("home_off", true).apply()
+        HomeOverride.running?.disableSelf()
+        if (homeServiceOn() && checkSelfPermission(WRITE_SECURE) == PackageManager.PERMISSION_GRANTED) {
+            val me = ComponentName(this, HomeOverride::class.java)
+            val on = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+            Settings.Secure.putString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+                on.split(':').filter { ComponentName.unflattenFromString(it) != me }.joinToString(":"))
+        }
+        if (homeServiceOn()) {
+            Toast.makeText(this, "Turn off \"Plume: Home button\" in Settings → System → Accessibility", Toast.LENGTH_LONG).show()
+            openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        }
+        renderSettings(HOME_BUTTON_ROW)
+    }
+
     /** The Home key service is an accessibility service, which Android only lets the user switch on. */
     private fun turnOnHomeButton() {
-        if (homeServiceOn()) return
+        prefs.edit().remove("home_off").apply()
         ensureHomeService() // works where the adb permission was granted
         if (homeServiceOn()) return renderSettings(HOME_BUTTON_ROW)
         // The written path is the safety net: some Google TVs (a Xiaomi stick) answer the Accessibility link
@@ -357,8 +383,8 @@ class MainActivity : Activity() {
         if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME) && !roles.isRoleHeld(RoleManager.ROLE_HOME)) {
             @Suppress("DEPRECATION")
             startActivityForResult(roles.createRequestRoleIntent(RoleManager.ROLE_HOME), ROLE_REQUEST)
-        } else if (!isDefaultHome()) {
-            openSettings(Settings.ACTION_HOME_SETTINGS)
+        } else {
+            openSettings(Settings.ACTION_HOME_SETTINGS) // Android lets apps ask for Home, not give it back
         }
     }
 
@@ -710,6 +736,7 @@ class MainActivity : Activity() {
         val sort = prefs.getString("sort", "manual")!!
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!.size
         val weather = prefs.getString("weather", "off")!!
+        val unit = if (weather == "off") prefs.getString("wx_unit", "c")!! else weather
         val cwOff = prefs.getStringSet("cw_off", emptySet())!!.count { pkg -> apps.any { it.pkg == pkg } } // uninstalled ones don't count
         val rowHidden = rowHiddenSet().count { pkg -> apps.any { it.pkg == pkg } }
         val names = rowNames()
@@ -723,7 +750,7 @@ class MainActivity : Activity() {
             },
             Triple("Light mode wallpaper", wallpaperName(currentWallpaper(false))) { pickWallpaper(false) },
             Triple("Dark mode wallpaper", wallpaperName(currentWallpaper(true))) { pickWallpaper(true) },
-            Triple("Photo fade", if (wallpaperFade()) "On" else "Off") {
+            Triple("Photo fade", toggle(wallpaperFade())) {
                 prefs.edit().putBoolean("wp_fade", !wallpaperFade()).apply()
                 loadWallpaper()
                 renderSettings(4)
@@ -752,13 +779,22 @@ class MainActivity : Activity() {
                 renderSettings(10)
             },
             Triple("Continue Watching apps", if (cwOff == 0) "All on" else "$cwOff off") { pickWatchSources() },
-            Triple("Weather", mapOf("off" to "Off", "c" to "°C", "f" to "°F")[weather]!!) {
-                prefs.edit().putString("weather", mapOf("off" to "c", "c" to "f", "f" to "off")[weather]).apply()
+            // "weather" is off/c/f as before; "wx_unit" keeps the unit while it's off.
+            Triple("Weather", toggle(weather != "off")) {
+                if (weather == "off") prefs.edit().putString("weather", unit).apply()
+                else prefs.edit().putString("wx_unit", weather).putString("weather", "off").apply()
                 showWeather()
                 ui.removeCallbacks(weatherTick)
                 ui.post(weatherTick)
                 renderSettings(12)
             },
+            Triple("Weather units", if (unit == "f") "°F" else "°C") {
+                val next = if (unit == "f") "c" else "f"
+                prefs.edit().putString("wx_unit", next).putString("weather", if (weather == "off") "off" else next).apply()
+                showWeather()
+                renderSettings(13)
+            },
+            Triple("Weather location", if (manualCity()) prefs.getString("geo_city", null) ?: "" else "Automatic") { pickCity() },
             Triple("Screensaver", when {
                 downloading -> "Downloading Gallery…"
                 !galleryOn() -> screensaverName()
@@ -766,15 +802,15 @@ class MainActivity : Activity() {
             }) { pickScreensaver() },
             Triple("Test screensaver", "") { testScreensaver() },
             Triple("Screensaver timing", "") { openScreensaverSettings() },
-            Triple("Home button", if (homeServiceOn()) "On" else "Off: press to turn on") { turnOnHomeButton() },
-            Triple("Default launcher", if (isDefaultHome()) "Plume" else "Press to set") { makeDefaultHome() },
+            Triple("Home button", toggle(homeServiceOn())) { toggleHomeButton() },
+            Triple("Default launcher", if (isDefaultHome()) "Plume: press to change" else "Press to set") { makeDefaultHome() },
             Triple("Updates", when {
                 updating -> "Updating…"
                 checking -> "Checking…"
                 availableUpdate() != null -> "${availableUpdate()} available: press to update"
                 else -> "Up to date (${myVersion()})"
             }) { availableUpdate()?.let { installUpdate(it) } ?: checkUpdate(force = true) },
-            Triple("Lock layout", if (lockOn()) "On" else "Off") {
+            Triple("Lock layout", toggle(lockOn())) {
                 if (!lockOn()) return@Triple setLock()
                 prefs.edit().remove("lock_pin").apply()
                 renderSettings(LOCK_ROW)
@@ -955,12 +991,33 @@ class MainActivity : Activity() {
             isFocusable = true
             isClickable = true
             addView(label(title, 14f), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(label(value, 13f).apply { alpha = 0.6f })
+            if (value == TOGGLE_ON || value == TOGGLE_OFF) addView(switch(value == TOGGLE_ON), LinearLayout.LayoutParams(dp(36), dp(20)))
+            else addView(label(value, 13f).apply { alpha = 0.6f })
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
                 bg.colors = if (!focused) intArrayOf(0, 0) else if (dark) cardLit else intArrayOf(Color.WHITE, Color.WHITE)
             }
         }
+    }
+
+    private fun toggle(on: Boolean) = if (on) TOGGLE_ON else TOGGLE_OFF
+
+    /** A mono switch for on/off rows: filled track with the knob right when on, outlined and left when off. */
+    private fun switch(on: Boolean) = FrameLayout(this).apply {
+        val faint = fg and 0xFFFFFF or 0x66000000
+        background = GradientDrawable().apply {
+            cornerRadius = dp(10).toFloat()
+            if (on) setColor(fg) else setStroke(dp(2), faint)
+        }
+        addView(View(context).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(if (!on) faint else if (dark) 0xFF09090B.toInt() else Color.WHITE)
+            }
+        }, FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER_VERTICAL or if (on) Gravity.END else Gravity.START).apply {
+            marginStart = dp(3)
+            marginEnd = dp(3)
+        })
     }
 
     private fun showNet(caps: NetworkCapabilities?) {
@@ -1291,7 +1348,8 @@ class MainActivity : Activity() {
             }
         }
         // The settings panel is a vertical list: don't let Left/Right leak focus to the home screen behind it.
-        if (settingsScrim.visibility == View.VISIBLE && currentFocus !== pinBox &&
+        // The PIN boxes and the city search box use them themselves.
+        if (settingsScrim.visibility == View.VISIBLE && currentFocus !== pinBox && currentFocus !is EditText &&
             (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
         ) return true
         if (editing && editKey(e, confirm)) return true
@@ -1800,7 +1858,7 @@ class MainActivity : Activity() {
         if (System.currentTimeMillis() - prefs.getLong("wx_time", 0) < 25 * 60_000L) return
         io.execute {
             try {
-                if (System.currentTimeMillis() - prefs.getLong("geo_time", 0) > 6 * 3600_000L) {
+                if (!manualCity() && System.currentTimeMillis() - prefs.getLong("geo_time", 0) > 6 * 3600_000L) {
                     val geo = getJson("https://ipwho.is/?fields=success,city,latitude,longitude")
                     if (geo.optBoolean("success")) prefs.edit()
                         .putString("geo_city", geo.getString("city"))
@@ -1818,6 +1876,87 @@ class MainActivity : Activity() {
                 ui.post { showWeather() }
             } catch (e: Exception) {
                 android.util.Log.w("TvHome", "weather failed ($e)") // keep the last reading; next tick retries
+            }
+        }
+    }
+
+    // An IP's location is wherever the provider routes it, sometimes a whole region off (Rome showing as
+    // Sicily), so you can pick the city instead. Open-Meteo's geocoding, also free and keyless.
+
+    private fun manualCity() = prefs.getBoolean("geo_manual", false)
+
+    private class City(val name: String, val where: String, val lat: Float, val lon: Float)
+
+    /** Automatic first, then the search box; a search lists what it found under them. */
+    private fun pickCity(query: String = "", found: List<City>? = null, status: String = "") {
+        val field = EditText(this).apply {
+            id = View.generateViewId()
+            setText(query)
+            setSelection(query.length)
+            hint = "Type a city, then Search"
+            textSize = 14f
+            setTextColor(fg)
+            setHintTextColor(Color.argb(120, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            isSingleLine = true
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            setPadding(dp(14), 0, dp(14), 0)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(8).toFloat()
+                setStroke(dp(1), Color.argb(80, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            }
+            setOnEditorActionListener { v, _, _ -> searchCity(v.text.toString().trim()); true }
+        }
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(4), 0, 0)
+            addView(field, LinearLayout.LayoutParams(MATCH_PARENT, dp(44)))
+            if (status.isNotEmpty()) addView(label(status, 12f).apply { alpha = 0.6f; setPadding(dp(14), dp(8), 0, 0) })
+        }
+        val rows = listOf(page("Automatic (from your internet address)", if (manualCity()) "" else CHOSEN) {
+            prefs.edit().remove("geo_manual").remove("geo_time").remove("wx_time").apply()
+            refreshWeather()
+            renderSettings(CITY_ROW)
+        }) + found.orEmpty().map { c ->
+            page(c.name, c.where) {
+                prefs.edit().putBoolean("geo_manual", true).putString("geo_city", c.name)
+                    .putFloat("geo_lat", c.lat).putFloat("geo_lon", c.lon).remove("wx_time").apply()
+                refreshWeather()
+                renderSettings(CITY_ROW)
+            }
+        }
+        showPage("Weather location", rows, if (found.isNullOrEmpty()) 0 else 1, top = top) { renderSettings(CITY_ROW) }
+        // showPage pins Up on the first row to itself; here Up goes to the search box.
+        settingsList.getChildAt(1).nextFocusUpId = field.id
+        if (found.isNullOrEmpty()) field.requestFocus()
+        // Results in: put the keyboard away, it would cover them.
+        else getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(field.windowToken, 0)
+    }
+
+    private fun searchCity(query: String) {
+        if (query.isEmpty()) return
+        pickCity(query, status = "Searching…")
+        io.execute {
+            val found = try {
+                val r = getJson("https://geocoding-api.open-meteo.com/v1/search?count=8&format=json" +
+                    "&language=${java.util.Locale.getDefault().language}&name=${URLEncoder.encode(query, "UTF-8")}")
+                val list = r.optJSONArray("results")
+                (0 until (list?.length() ?: 0)).map { i ->
+                    val c = list!!.getJSONObject(i)
+                    City(c.getString("name"), listOf(c.optString("admin1"), c.optString("country")).filter { it.isNotEmpty() }.joinToString(", "),
+                        c.getDouble("latitude").toFloat(), c.getDouble("longitude").toFloat())
+                }
+            } catch (e: Exception) {
+                null
+            }
+            ui.post {
+                // Only if the page is still open: Back may have left it while the search ran.
+                if (settingsScrim.visibility != View.VISIBLE || findViewById<TextView>(R.id.settingsTitle).text.toString() != "Weather location") return@post
+                when {
+                    found == null -> pickCity(query, status = "Couldn't search. Check the connection and try again.")
+                    found.isEmpty() -> pickCity(query, status = "No places called \"$query\".")
+                    else -> pickCity(query, found)
+                }
             }
         }
     }
@@ -2192,11 +2331,14 @@ class MainActivity : Activity() {
         const val TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
         const val WRITE_SECURE = "android.permission.WRITE_SECURE_SETTINGS"
         const val ROLE_REQUEST = 2
-        const val SCREENSAVER_ROW = 13 // positions in the settings list (see renderSettings)
-        const val HOME_BUTTON_ROW = 16
-        const val DEFAULT_HOME_ROW = 17
-        const val UPDATE_ROW = 18
-        const val LOCK_ROW = 19
+        const val CITY_ROW = 14 // positions in the settings list (see renderSettings)
+        const val SCREENSAVER_ROW = 15
+        const val HOME_BUTTON_ROW = 18
+        const val DEFAULT_HOME_ROW = 19
+        const val UPDATE_ROW = 20
+        const val LOCK_ROW = 21
+        const val TOGGLE_ON = "\u0000on" // row values drawn as a switch instead of text
+        const val TOGGLE_OFF = "\u0000off"
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait
         const val UNLOCKED_MS = 5 * 60_000L
         const val UNLOCK_TO_EDIT = "Unlock to edit…"
