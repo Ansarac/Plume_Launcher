@@ -24,7 +24,7 @@ Plume replaces the cluttered stock home screen with the two things you actually 
 - **Home button support on Google TV.** The Home button opens Plume directly, even on devices where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
 - **Continue Watching.** Resume shows and films from Android TV's Watch Next list and from apps that publish their own "Continue Watching" channel, such as Stremio.
 - **Clean apps row.** Monochrome logos (or the same logos in brand colour) in a single row, with names on focus, always or never. Rearrange it by holding OK, sort by most used, or hide apps you don't use (they stay in All apps). An optional PIN locks the layout so small hands can't rearrange it.
-- **HDMI inputs as apps.** A console or set-top box that names itself over HDMI-CEC (for example "PlayStation 5") gets its own tile, which switches the TV to that input.
+- **HDMI inputs as apps.** A console or set-top box that names itself over HDMI-CEC (for example "PlayStation 5") gets its own tile, which switches the TV to that input. Other HDMI devices get a tile while they send a picture, and every HDMI input is in All apps, where you can pin it to the row.
 - **Light, dark or automatic theme**, each with its own wallpaper. Add your own photos from your phone by scanning a QR code, or show a folder of photos from the TV or a USB drive that changes on a timer.
 - **Optional Gallery screensaver.** Public-domain landscape paintings in 16:9, downloaded only if you choose it, or a folder of your own photos.
 - **Optional weather** under the clock.
@@ -194,6 +194,7 @@ Bug reports, translations and pull requests are welcome. Plume stays small on pu
   - Martin Johnson Heade: *Thunder Storm on Narragansett Bay*
 - **Wallpapers:** "Canada" by Thomas Curryer, via [Unsplash](https://unsplash.com/@tawc20) (CC0)
 - **App logos:** [Simple Icons](https://simpleicons.org) (CC0). All trademarks belong to their respective owners.
+- **HDMI input icons:** [Material Symbols](https://fonts.google.com/icons) by Google (Apache 2.0)
 
 ## License
 
