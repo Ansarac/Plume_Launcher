@@ -26,6 +26,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - Push Left or Right to change a value, for example **Theme** or **Weather units**.
 - At the top of a list, push Up to go to the bottom.
 - Plume settings opens at the section that you used last.
+- Dark mode stays dark. The selected item in settings, menus and popups is easier to see.
 
 ## 1.3
 

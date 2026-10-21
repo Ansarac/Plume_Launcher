@@ -1,6 +1,7 @@
 package dev.plume
 
 import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.Dialog
 import android.app.PendingIntent
@@ -216,7 +217,7 @@ class MainActivity : Activity() {
             background = ring
             setOnFocusChangeListener { v, focused ->
                 if (focused) lastTop = v
-                ring.setColor(if (!focused) 0 else if (dark) 0xFF2A2A32.toInt() else Color.WHITE)
+                ring.setColor(if (!focused) 0 else if (dark) DARK_CARD_LIT[0] else Color.WHITE)
                 animate().scaleX(if (focused) 1.15f else 1f).scaleY(if (focused) 1.15f else 1f)
                     .setDuration(160).setInterpolator(DECELERATE).start()
             }
@@ -482,7 +483,7 @@ class MainActivity : Activity() {
             setPadding(dp(14), dp(10), dp(14), dp(10))
             background = GradientDrawable().apply {
                 cornerRadius = dp(10).toFloat()
-                setColor(if (dark) 0xFF09090B.toInt() else 0xFFE9EBEF.toInt())
+                setColor(if (dark) DARK_BG else 0xFFE9EBEF.toInt())
             }
             listOfNotNull(lanAddress()?.let { "adb connect $it:5555" }, "adb shell pm grant $packageName $WRITE_SECURE").forEach {
                 addView(label(it, 12f).apply { typeface = mono; maxLines = 2; ellipsize = null; setPadding(0, dp(2), 0, dp(2)) })
@@ -516,13 +517,13 @@ class MainActivity : Activity() {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(28), dp(24), dp(28), dp(20))
-            background = GradientDrawable().apply {
+            background = if (dark) rimCard(dp(16), false) else GradientDrawable().apply {
                 cornerRadius = dp(16).toFloat()
-                setColor(if (dark) 0xFF141418.toInt() else 0xFFF7F8FA.toInt())
+                setColor(0xFFF7F8FA.toInt())
             }
-            if (step > 0) addView(label(getString(R.string.setup_step, step), 12f).apply { alpha = 0.6f })
+            if (step > 0) addView(label(getString(R.string.setup_step, step), 12f).apply { secondary(0.6f) })
             addView(label(title, 22f).apply { setTypeface(typeface, Typeface.BOLD); setPadding(0, dp(4), 0, 0) })
-            addView(label(body, 14f).apply { maxLines = 6; alpha = 0.8f; setLineSpacing(0f, 1.15f); setPadding(0, dp(10), 0, 0) })
+            addView(label(body, 14f).apply { maxLines = 6; secondary(0.8f); setLineSpacing(0f, 1.15f); setPadding(0, dp(10), 0, 0) })
             extra?.let { addView(it) }
             buttons.forEachIndexed { i, (name, action) ->
                 addView(settingsRow(name, "") { if (previewAt >= 0) previewHomeSetup(previewAt + 1) else action() },
@@ -591,14 +592,13 @@ class MainActivity : Activity() {
 
     private fun applyTheme() {
         dark = wantDark()
-        fg = if (dark) 0xFFF5F5F7.toInt() else 0xFF111214.toInt()
-        // Dark cards are matte black glass on a true-black ground: lit faintly from the top and fading to
-        // near-black, no outline (outlines read as a grey grid). Focus brightens the glass, never to grey.
-        // Light cards are frosted grey glass, so they still read on white wallpapers; focus turns them white.
-        cardRest = if (dark) intArrayOf(0xFF16161B.toInt(), 0xFF060607.toInt()) else intArrayOf(0xD9E2E5E9.toInt(), 0xD9D8DCE1.toInt())
-        cardLit = if (dark) intArrayOf(0xFF26262E.toInt(), 0xFF0C0C0F.toInt()) else intArrayOf(Color.WHITE, Color.WHITE)
+        fg = if (dark) DARK_TEXT else 0xFF111214.toInt()
+        // Dark cards are rimCard()s on true black. Light cards are frosted grey glass, so they still read on
+        // white wallpapers; focus turns them white.
+        cardRest = if (dark) DARK_CARD else intArrayOf(0xD9E2E5E9.toInt(), 0xD9D8DCE1.toInt())
+        cardLit = if (dark) DARK_CARD_LIT else intArrayOf(Color.WHITE, Color.WHITE)
         // Must match the colour each wallpaper fades into, or the bottom edge shows a seam.
-        ground = if (dark) Color.BLACK else 0xFFF3F5F7.toInt()
+        ground = if (dark) DARK_BG else 0xFFF3F5F7.toInt()
         findViewById<View>(R.id.root).setBackgroundColor(ground)
         allApps.setBackgroundColor(ground)
         for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.watchTitle, R.id.allAppsTitle, R.id.rowLabel, R.id.weather)) {
@@ -891,7 +891,12 @@ class MainActivity : Activity() {
 
     private fun showPanel() {
         panelFrom = currentFocus
-        findViewById<View>(R.id.settingsPanel).setBackgroundColor(if (dark) 0xFF09090B.toInt() else 0xFFF7F8FA.toInt())
+        // Dark: true black, set apart from the home screen by a hairline on its left edge.
+        findViewById<View>(R.id.settingsPanel).background = if (!dark) ColorDrawable(0xFFF7F8FA.toInt())
+            else LayerDrawable(arrayOf(ColorDrawable(DARK_BG), ColorDrawable(PANEL_EDGE))).apply {
+                setLayerGravity(1, Gravity.START or Gravity.FILL_VERTICAL)
+                setLayerWidth(1, 1)
+            }
         findViewById<TextView>(R.id.settingsTitle).setTextColor(fg)
         settingsScrim.visibility = View.VISIBLE
         homeFocusable(false)
@@ -1152,9 +1157,10 @@ class MainActivity : Activity() {
             b.text = if (digits[i] == null) "" else if (i == at) digits[i].toString() else "•"
             b.background = GradientDrawable().apply {
                 cornerRadius = dp(8).toFloat()
-                setColor(if (dark) 0xFF1C1C22.toInt() else Color.WHITE)
+                setColor(Color.WHITE)
                 if (i == at) setStroke(dp(2), fg)
             }
+            if (dark) b.background = rimCard(dp(8), i == at)
         }
         fun submit() {
             val error = done(digits.joinToString("")) ?: return
@@ -1224,12 +1230,21 @@ class MainActivity : Activity() {
             background = bg
             isFocusable = true
             isClickable = true
-            addView(label(title, 14f), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            val shown = if (value == TOGGLE_ON || value == TOGGLE_OFF) null else label(value, 13f).apply { alpha = 0.6f }
+            val name = label(title, 14f).apply { if (dark) setTextColor(DARK_TEXT_2) }
+            addView(name, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            val shown = if (value == TOGGLE_ON || value == TOGGLE_OFF) null else label(value, 13f).apply { secondary(0.6f) }
             if (shown == null) addView(switch(value == TOGGLE_ON), LinearLayout.LayoutParams(dp(36), dp(20))) else addView(shown)
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
-                bg.colors = if (!focused) intArrayOf(0, 0) else if (dark) cardLit else intArrayOf(Color.WHITE, Color.WHITE)
+                // Focus: a lit rimCard in dark (and the title brightens), a white pill in light.
+                if (dark) background = if (focused) rimCard(dp(8), true) else bg
+                else bg.colors = if (focused) intArrayOf(Color.WHITE, Color.WHITE) else intArrayOf(0, 0)
+                // The title glides to bright rather than snapping, so moving through the list feels smooth.
+                if (dark) ValueAnimator.ofArgb(name.currentTextColor, if (focused) DARK_TEXT else DARK_TEXT_2).apply {
+                    duration = 160
+                    interpolator = DECELERATE
+                    addUpdateListener { name.setTextColor(it.animatedValue as Int) }
+                }.start()
                 if (step != null) shown?.text = if (focused) "‹  $value  ›" else value
             }
             tag = step // dispatchKeyEvent calls it for Left (-1) and Right (+1)
@@ -1248,7 +1263,7 @@ class MainActivity : Activity() {
         addView(View(context).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(if (!on) faint else if (dark) 0xFF09090B.toInt() else Color.WHITE)
+                setColor(if (!on) faint else if (dark) DARK_BG else Color.WHITE)
             }
         }, FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER_VERTICAL or if (on) Gravity.END else Gravity.START).apply {
             marginStart = dp(3)
@@ -1724,11 +1739,11 @@ class MainActivity : Activity() {
         val list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(6), dp(6), dp(6))
-            background = GradientDrawable().apply {
+            background = if (dark) rimCard(dp(12), false) else GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat()
-                setColor(if (dark) 0xFF141418.toInt() else 0xFFF7F8FA.toInt())
+                setColor(0xFFF7F8FA.toInt())
             }
-            elevation = dp(8).toFloat()
+            elevation = if (dark) 0f else dp(8).toFloat()
         }
         val menu = PopupWindow(list, dp(260), LinearLayout.LayoutParams.WRAP_CONTENT, true)
         items.forEachIndexed { i, (name, action) ->
@@ -1738,7 +1753,7 @@ class MainActivity : Activity() {
         }
         list.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
         val at = IntArray(2).also { anchor.getLocationInWindow(it) }
-        menu.elevation = dp(8).toFloat()
+        menu.elevation = if (dark) 0f else dp(8).toFloat()
         menu.showAtLocation(anchor, Gravity.NO_GRAVITY, at[0], maxOf(dp(8), at[1] - list.measuredHeight - dp(8)))
         list.getChildAt(0).requestFocus()
     }
@@ -2465,7 +2480,7 @@ class MainActivity : Activity() {
         }
         val img = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
-            setBackgroundColor(if (dark) 0xFF111113.toInt() else 0xFFDDE1E5.toInt())
+            setBackgroundColor(if (dark) DARK_SURFACE else 0xFFDDE1E5.toInt())
         }
         // Long titles scroll while their poster is focused instead of staying cut off.
         val title = label(p.title, 14f).apply {
@@ -2595,7 +2610,7 @@ class MainActivity : Activity() {
         val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (card) cardRest else intArrayOf(0, 0)).apply {
             cornerRadius = radius.toFloat()
         }
-        v.background = bg
+        v.background = if (dark && card) rimCard(radius, false) else bg
         if (!dark) v.foreground = sheen
         v.clipToOutline = true
         v.outlineSpotShadowColor = Color.BLACK
@@ -2606,7 +2621,8 @@ class MainActivity : Activity() {
         v.setOnLongClickListener { if (!holdFired) fireHold(v); true }
         v.setOnFocusChangeListener { _, focused ->
             sheen.alpha = if (focused) 255 else 0
-            if (card) bg.colors = if (focused) cardLit else cardRest
+            if (card && dark) v.background = rimCard(radius, focused)
+            else if (card) bg.colors = if (focused) cardLit else cardRest
             v.animate()
                 .scaleX(if (focused) lift else 1f).scaleY(if (focused) lift else 1f)
                 .translationZ(if (focused) dp(14).toFloat() else 0f)
@@ -2614,6 +2630,26 @@ class MainActivity : Activity() {
             onFocus?.invoke(focused)
         }
     }
+
+    /**
+     * A dark-mode card on true black: near-black glass with a hairline rim, brighter along the top edge as if
+     * lit from above. [lit] is the focused look: brighter glass and rim.
+     */
+    private fun rimCard(radius: Int, lit: Boolean): Drawable {
+        val body = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (lit) DARK_CARD_LIT else DARK_CARD).apply {
+            cornerRadius = radius.toFloat()
+            setStroke(1, if (lit) RIM_SIDE_LIT else RIM_SIDE) // 1px, not 1dp: a hairline stays crisp
+        }
+        return LayerDrawable(arrayOf(body, ColorDrawable(if (lit) RIM_TOP_LIT else RIM_TOP))).apply {
+            setLayerGravity(1, Gravity.TOP or Gravity.FILL_HORIZONTAL)
+            setLayerHeight(1, 1)
+            setLayerInsetLeft(1, radius)
+            setLayerInsetRight(1, radius)
+        }
+    }
+
+    /** Supporting text: the secondary grey in dark mode, [lightAlpha] of the main colour in light mode. */
+    private fun TextView.secondary(lightAlpha: Float) = if (dark) setTextColor(DARK_TEXT_2) else alpha = lightAlpha
 
     private fun label(text: String, size: Float) = TextView(this).apply {
         this.text = text
@@ -2635,6 +2671,19 @@ class MainActivity : Activity() {
             "right" to (R.string.align_right to Gravity.END),
         )
         const val BADGE = 0xFFFF453A.toInt()
+        // Dark mode tokens, for AMOLED: true black, and near-black cards that read as cards because their edge
+        // catches light (brightest along the top), the way light-mode cards use a soft shadow.
+        const val DARK_BG = 0xFF000000.toInt() // home ground, settings panel, inset boxes
+        const val DARK_SURFACE = 0xFF0B0B0B.toInt() // placeholders behind images
+        const val DARK_TEXT = 0xFFF5F5F5.toInt()
+        const val DARK_TEXT_2 = 0xFF7A7A7A.toInt() // values, unfocused rows, supporting text
+        val DARK_CARD = intArrayOf(0xFF0B0B0B.toInt(), 0xFF040404.toInt())
+        val DARK_CARD_LIT = intArrayOf(0xFF141414.toInt(), 0xFF070707.toInt())
+        const val RIM_TOP = 0x17FFFFFF // white 9%
+        const val RIM_SIDE = 0x0AFFFFFF // white 4%
+        const val RIM_TOP_LIT = 0x38FFFFFF // white 22%
+        const val RIM_SIDE_LIT = 0x17FFFFFF
+        const val PANEL_EDGE = 0x0FFFFFFF // white 6%, the settings panel's left edge
         const val HELP_URL = "https://github.com/aradhyas8/Plume_Launcher#home-button-on-android-13-and-newer"
         const val TOGGLE_ON = "\u0000on" // row values drawn as a switch instead of text
         const val TOGGLE_OFF = "\u0000off"
