@@ -1,6 +1,7 @@
 # Changelog
 
 Plume shows the section for its own version in **Plume settings → Updates** after an update.
+After an update, a card on the home screen shows the first 3 entries. Put the 3 most interesting changes first.
 The build stops if `versionName` has no section here.
 
 Write every entry in ASD-STE100 Simplified Technical English:
@@ -15,7 +16,10 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- Plume is smaller: the download is 364 KB, not 441 KB. The built-in day wallpaper is now a WebP image.
+- After an update, a card shows what is new. Select **See all changes** to read all of it.
 - Every HDMI input can be a tile. A device that names itself, like a PS5, Xbox or Nintendo Switch, gets a tile with its logo. Other HDMI devices get a tile while they send a picture. Every HDMI input is in **All apps**. Hold OK on one to pin it to the row.
+- The menu that opens when you hold OK is now only as wide as its longest item. Near the right edge of the screen it stays inside the side margin.
 - Continue Watching is no longer limited to 3 shows for each app. Each app keeps 3 places near the front. More shows from an app come after them, up to 20 in total.
 - You can set the weather location by hand. Select **Plume settings → Weather location**.
 - **Plume settings → Home button** is now a switch. Use it to turn the Home button on or off.
