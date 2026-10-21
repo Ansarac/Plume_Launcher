@@ -224,7 +224,7 @@ class MainActivity : Activity() {
         }
         if (prefs.getBoolean("reopen_settings", false)) {
             prefs.edit().remove("reopen_settings").apply()
-            ui.post { openLauncherSettings(focus = 1) }
+            ui.post { openLauncherSettings(R.string.theme) }
         } else if (!homeServiceOn() && !prefs.getBoolean("setup_shown", false)) {
             // Fresh install: walk through making Home land on Plume, the one step that has to happen by hand.
             prefs.edit().putBoolean("setup_shown", true).apply()
@@ -285,7 +285,7 @@ class MainActivity : Activity() {
 
     @Deprecated("Only used for the default-home role request")
     override fun onActivityResult(code: Int, result: Int, data: Intent?) {
-        if (code == ROLE_REQUEST && settingsScrim.visibility == View.VISIBLE) renderSettings(DEFAULT_HOME_ROW)
+        if (code == ROLE_REQUEST && settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.default_launcher)
         if (code == ROLE_REQUEST && setupStep == 1) {
             setupStep = 0
             afterHomeRole()
@@ -358,14 +358,14 @@ class MainActivity : Activity() {
             Toast.makeText(this, getString(R.string.home_off_hint), Toast.LENGTH_LONG).show()
             openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS)
         }
-        renderSettings(HOME_BUTTON_ROW)
+        renderSettings(R.string.home_button)
     }
 
     /** The Home key service is an accessibility service, which Android only lets the user switch on. */
     private fun turnOnHomeButton() {
         prefs.edit().remove("home_off").apply()
         ensureHomeService() // works where the adb permission was granted
-        if (homeServiceOn()) return renderSettings(HOME_BUTTON_ROW)
+        if (homeServiceOn()) return renderSettings(R.string.home_button)
         // The written path is the safety net: some Google TVs (a Xiaomi stick) answer the Accessibility link
         // with "You don't have an app that can do this", which we can't detect from here.
         Toast.makeText(this, getString(R.string.home_on_hint), Toast.LENGTH_LONG).show()
@@ -694,7 +694,7 @@ class MainActivity : Activity() {
 
     /** Wallpapers page, framed by "Add from phone…" first and, once there are photos, "Remove a photo…" last. */
     private fun pickWallpaper(forDark: Boolean) {
-        val row = if (forDark) 3 else 2
+        val row = if (forDark) R.string.dark_wallpaper else R.string.light_wallpaper
         val choices = wallpaperChoices(forDark)
         val own = choices.filter { it.second.startsWith("file:") }
         val current = currentWallpaper(forDark)
@@ -727,10 +727,10 @@ class MainActivity : Activity() {
                 prefs.edit().putInt("wp_every", minutes).apply()
                 ui.removeCallbacks(wallpaperTick)
                 ui.post(wallpaperTick)
-                renderSettings(5)
+                renderSettings(R.string.folder_photo_changes)
             }
         }
-        showPage(getString(R.string.folder_photo_changes), rows, PHOTO_EVERY.keys.indexOf(photoEvery())) { renderSettings(5) }
+        showPage(getString(R.string.folder_photo_changes), rows, PHOTO_EVERY.keys.indexOf(photoEvery())) { renderSettings(R.string.folder_photo_changes) }
     }
 
     /** While the home screen shows, a folder wallpaper moves on to its next photo when its time is up. */
@@ -774,7 +774,7 @@ class MainActivity : Activity() {
 
     private fun pickFolder(forDark: Boolean) = pickFolder({ pickWallpaper(forDark) }) { choice ->
         setWallpaper(forDark, choice)
-        renderSettings(if (forDark) 3 else 2)
+        renderSettings(if (forDark) R.string.dark_wallpaper else R.string.light_wallpaper)
     }
 
     /** Folders page for wallpapers and the screensaver; [onPick] gets "folder:<bucket id>:<name>". */
@@ -884,9 +884,9 @@ class MainActivity : Activity() {
     private val settingsScrim by lazy { findViewById<View>(R.id.settingsScrim) }
     private val settingsList by lazy { findViewById<LinearLayout>(R.id.settingsList) }
 
-    private fun openLauncherSettings(focus: Int = 0) {
+    private fun openLauncherSettings(at: Int = lastSettings) {
         showPanel()
-        renderSettings(focus)
+        renderSettings(at)
     }
 
     private fun showPanel() {
@@ -909,7 +909,12 @@ class MainActivity : Activity() {
 
     private var panelFrom: View? = null // focus to go back to when the panel closes
 
-    private fun renderSettings(focus: Int) {
+    /**
+     * Plume settings, as a short list of sections that each open a page. [at] is the string id of the row to
+     * focus: a row inside a section opens that section on it; a section or a top-level row focuses it in the
+     * main list. Rows are found by name, so adding one never moves the others.
+     */
+    private fun renderSettings(at: Int = 0) {
         val theme = prefs.getString("theme", "light")!!
         val sort = prefs.getString("sort", "manual")!!
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!.size
@@ -919,93 +924,130 @@ class MainActivity : Activity() {
         val rowHidden = rowHiddenSet().count { pkg -> apps.any { it.pkg == pkg } }
         val names = rowNames()
         val colour = colourIcons()
-        val rows = listOf<Triple<String, String, () -> Unit>>(
-            Triple(getString(R.string.edit_apps_row), "") { closeLauncherSettings(); startEdit(grab = null) },
-            Triple(getString(R.string.theme), getString(mapOf("light" to R.string.theme_light, "dark" to R.string.theme_dark, "auto" to R.string.theme_auto)[theme] ?: R.string.theme_light)) {
-                prefs.edit().putString("theme", mapOf("light" to "dark", "dark" to "auto", "auto" to "light")[theme])
-                    .putBoolean("reopen_settings", true).apply()
+        // Rows with more than two values also step back with Left; two-value rows flip either way.
+        val steps = mutableMapOf<Int, (Int) -> Unit>(
+            R.string.theme to { d ->
+                prefs.edit().putString("theme", listOf("light", "dark", "auto").step(theme, d)).putBoolean("reopen_settings", true).apply()
                 recreate() // colours are applied once per activity; reopen the panel after
             },
-            Triple(getString(R.string.light_wallpaper), wallpaperName(currentWallpaper(false))) { pickWallpaper(false) },
-            Triple(getString(R.string.dark_wallpaper), wallpaperName(currentWallpaper(true))) { pickWallpaper(true) },
-            Triple(getString(R.string.photo_fade), toggle(wallpaperFade())) {
+            R.string.row_position to { d ->
+                prefs.edit().putString("row_align", ROW_ALIGN.keys.toList().step(rowAlign(), d)).apply()
+                alignRow()
+                renderSettings(R.string.row_position)
+            },
+            R.string.app_names to { d ->
+                prefs.edit().putString("names", listOf("focus", "always", "never").step(names, d)).apply()
+                renderApps()
+                renderSettings(R.string.app_names)
+            },
+        )
+        val rows = linkedMapOf<Int, Triple<String, String, () -> Unit>>(
+            R.string.edit_apps_row to Triple(getString(R.string.edit_apps_row), "") { closeLauncherSettings(); startEdit(grab = null) },
+            R.string.theme to Triple(getString(R.string.theme), getString(mapOf("light" to R.string.theme_light, "dark" to R.string.theme_dark, "auto" to R.string.theme_auto)[theme] ?: R.string.theme_light)) {
+                steps[R.string.theme]!!(1)
+            },
+            R.string.light_wallpaper to Triple(getString(R.string.light_wallpaper), wallpaperName(currentWallpaper(false))) { pickWallpaper(false) },
+            R.string.dark_wallpaper to Triple(getString(R.string.dark_wallpaper), wallpaperName(currentWallpaper(true))) { pickWallpaper(true) },
+            R.string.photo_fade to Triple(getString(R.string.photo_fade), toggle(wallpaperFade())) {
                 prefs.edit().putBoolean("wp_fade", !wallpaperFade()).apply()
                 loadWallpaper()
-                renderSettings(4)
+                renderSettings(R.string.photo_fade)
             },
-            Triple(getString(R.string.folder_photo_changes), getString(PHOTO_EVERY[photoEvery()]!!)) { pickPhotoEvery() },
-            Triple(getString(R.string.sort_apps), if (sort == "manual") getString(R.string.manual) else getString(R.string.most_used)) {
+            R.string.folder_photo_changes to Triple(getString(R.string.folder_photo_changes), getString(PHOTO_EVERY[photoEvery()]!!)) { pickPhotoEvery() },
+            R.string.sort_apps to Triple(getString(R.string.sort_apps), if (sort == "manual") getString(R.string.manual) else getString(R.string.most_used)) {
                 prefs.edit().putString("sort", if (sort == "manual") "usage" else "manual").apply()
                 renderApps()
-                renderSettings(6)
+                renderSettings(R.string.sort_apps)
             },
-            Triple(getString(R.string.apps_in_row), if (rowHidden == 0) getString(R.string.all) else getString(R.string.n_of_m, apps.size - rowHidden, apps.size)) { pickRowApps() },
-            Triple(getString(R.string.row_position), getString(ROW_ALIGN[rowAlign()]!!.first)) {
-                prefs.edit().putString("row_align", ROW_ALIGN.keys.let { it.elementAt((it.indexOf(rowAlign()) + 1) % it.size) }).apply()
-                alignRow()
-                renderSettings(8)
+            R.string.apps_in_row to Triple(getString(R.string.apps_in_row), if (rowHidden == 0) getString(R.string.all) else getString(R.string.n_of_m, apps.size - rowHidden, apps.size)) { pickRowApps() },
+            R.string.row_position to Triple(getString(R.string.row_position), getString(ROW_ALIGN[rowAlign()]!!.first)) {
+                steps[R.string.row_position]!!(1)
             },
-            Triple(getString(R.string.app_names), mapOf("focus" to getString(R.string.on_focus), "always" to getString(R.string.always), "never" to getString(R.string.never))[names]!!) {
-                prefs.edit().putString("names", mapOf("focus" to "always", "always" to "never", "never" to "focus")[names]).apply()
-                renderApps()
-                renderSettings(9)
+            R.string.app_names to Triple(getString(R.string.app_names), mapOf("focus" to getString(R.string.on_focus), "always" to getString(R.string.always), "never" to getString(R.string.never))[names]!!) {
+                steps[R.string.app_names]!!(1)
             },
-            Triple(getString(R.string.icon_style), if (colour) getString(R.string.colour) else getString(R.string.monochrome)) {
+            R.string.icon_style to Triple(getString(R.string.icon_style), if (colour) getString(R.string.colour) else getString(R.string.monochrome)) {
                 prefs.edit().putBoolean("colour_icons", !colour).apply()
                 renderApps()
-                renderSettings(10)
+                renderSettings(R.string.icon_style)
             },
-            Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else getString(R.string.n_hidden, hidden)) {
+            R.string.restore_hidden to Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else getString(R.string.n_hidden, hidden)) {
                 prefs.edit().remove("hidden_watch").apply()
                 watchKey = null
                 refreshWatchNext()
-                renderSettings(11)
+                renderSettings(R.string.restore_hidden)
             },
-            Triple(getString(R.string.cw_apps), if (cwOff == 0) getString(R.string.all_on) else getString(R.string.n_off, cwOff)) { pickWatchSources() },
+            R.string.cw_apps to Triple(getString(R.string.cw_apps), if (cwOff == 0) getString(R.string.all_on) else getString(R.string.n_off, cwOff)) { pickWatchSources() },
             // "weather" is off/c/f as before; "wx_unit" keeps the unit while it's off.
-            Triple(getString(R.string.weather), toggle(weather != "off")) {
+            R.string.weather to Triple(getString(R.string.weather), toggle(weather != "off")) {
                 if (weather == "off") prefs.edit().putString("weather", unit).apply()
                 else prefs.edit().putString("wx_unit", weather).putString("weather", "off").apply()
                 showWeather()
                 ui.removeCallbacks(weatherTick)
                 ui.post(weatherTick)
-                renderSettings(13)
+                renderSettings(R.string.weather)
             },
-            Triple(getString(R.string.weather_units), if (unit == "f") "°F" else "°C") {
+            R.string.weather_units to Triple(getString(R.string.weather_units), if (unit == "f") "°F" else "°C") {
                 val next = if (unit == "f") "c" else "f"
                 prefs.edit().putString("wx_unit", next).putString("weather", if (weather == "off") "off" else next).apply()
                 showWeather()
-                renderSettings(14)
+                renderSettings(R.string.weather_units)
             },
-            Triple(getString(R.string.weather_location), if (manualCity()) prefs.getString("geo_city", null) ?: "" else "Automatic") { pickCity() },
-            Triple(getString(R.string.screensaver), when {
+            R.string.weather_location to Triple(getString(R.string.weather_location), if (manualCity()) prefs.getString("geo_city", null) ?: "" else "Automatic") { pickCity() },
+            R.string.screensaver to Triple(getString(R.string.screensaver), when {
                 downloading -> getString(R.string.downloading_gallery)
                 !galleryOn() -> screensaverName()
                 else -> photoScreensaver()?.let { wallpaperName(it) } ?: getString(R.string.gallery)
             }) { pickScreensaver() },
-            Triple(getString(R.string.test_screensaver), "") { testScreensaver() },
-            Triple(getString(R.string.screensaver_timing), "") { openScreensaverSettings() },
-            Triple(getString(R.string.setup_home), "") { closeLauncherSettings(); startHomeSetup() },
-            Triple(getString(R.string.home_button), toggle(homeServiceOn())) { toggleHomeButton() },
-            Triple(getString(R.string.default_launcher), if (isDefaultHome()) getString(R.string.plume_press_change) else getString(R.string.press_to_set)) { makeDefaultHome() },
-            Triple(getString(R.string.updates), when {
+            R.string.test_screensaver to Triple(getString(R.string.test_screensaver), "") { testScreensaver() },
+            R.string.screensaver_timing to Triple(getString(R.string.screensaver_timing), "") { openScreensaverSettings() },
+            R.string.setup_home to Triple(getString(R.string.setup_home), "") { closeLauncherSettings(); startHomeSetup() },
+            R.string.home_button to Triple(getString(R.string.home_button), toggle(homeServiceOn())) { toggleHomeButton() },
+            R.string.default_launcher to Triple(getString(R.string.default_launcher), if (isDefaultHome()) getString(R.string.plume_press_change) else getString(R.string.press_to_set)) { makeDefaultHome() },
+            R.string.updates to Triple(getString(R.string.updates), when {
                 updating -> getString(R.string.updating)
                 checking -> getString(R.string.checking)
                 availableUpdate() != null -> getString(R.string.update_available_row, availableUpdate())
                 notesUnseen() -> getString(R.string.whats_new_title, myVersion())
                 else -> getString(R.string.up_to_date_row, myVersion())
             }) { showUpdates() },
-            Triple(getString(R.string.lock_layout), toggle(lockOn())) {
+            R.string.lock_layout to Triple(getString(R.string.lock_layout), toggle(lockOn())) {
                 if (!lockOn()) return@Triple setLock()
                 prefs.edit().remove("lock_pin").apply()
-                renderSettings(LOCK_ROW)
+                renderSettings(R.string.lock_layout)
             },
-        ) + listOfNotNull(
-            if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) null
-            else Triple(getString(R.string.preview_home_setup), "") { closeLauncherSettings(); previewHomeSetup() },
         )
-        showPage(getString(R.string.plume_settings), rows, focus, back = null)
+        for (k in listOf(R.string.sort_apps, R.string.icon_style, R.string.weather_units)) steps[k] = { rows[k]!!.third() }
+        val on = { b: Boolean -> getString(if (b) R.string.on else R.string.off) }
+        val sections = listOf(
+            Triple(R.string.section_appearance, "${rows[R.string.theme]!!.second} · ${wallpaperName(currentWallpaper(dark))}",
+                listOf(R.string.theme, R.string.light_wallpaper, R.string.dark_wallpaper, R.string.photo_fade, R.string.folder_photo_changes)),
+            Triple(R.string.section_app_row, "${rows[R.string.apps_in_row]!!.second} · ${rows[R.string.row_position]!!.second}",
+                listOf(R.string.edit_apps_row, R.string.sort_apps, R.string.apps_in_row, R.string.row_position, R.string.app_names, R.string.icon_style)),
+            Triple(R.string.continue_watching, rows[R.string.cw_apps]!!.second, listOf(R.string.cw_apps, R.string.restore_hidden)),
+            Triple(R.string.section_weather, if (weather == "off") on(false) else "${rows[R.string.weather_units]!!.second} · ${rows[R.string.weather_location]!!.second}",
+                listOf(R.string.weather, R.string.weather_units, R.string.weather_location)),
+            Triple(R.string.section_screensaver, rows[R.string.screensaver]!!.second, listOf(R.string.screensaver, R.string.test_screensaver, R.string.screensaver_timing)),
+            Triple(R.string.section_home, on(homeServiceOn() || isDefaultHome()), listOf(R.string.setup_home, R.string.home_button, R.string.default_launcher)),
+        )
+        val section = sections.firstOrNull { at in it.third }
+        if (section != null) {
+            lastSettings = section.first
+            val keys = section.third
+            return showPage(getString(section.first), keys.map { rows[it]!! }, keys.indexOf(at), steps = keys.map { steps[it] }) {
+                renderSettings(section.first)
+            }
+        }
+        val top = sections.map { (key, value, keys) -> key to page(getString(key), "$value  ›") { renderSettings(keys[0]) } } +
+            listOf(R.string.updates, R.string.lock_layout).map { it to rows[it]!! } +
+            listOfNotNull(if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) null
+                else R.string.preview_home_setup to page(getString(R.string.preview_home_setup)) { closeLauncherSettings(); previewHomeSetup() })
+        showPage(getString(R.string.plume_settings), top.map { it.second }, maxOf(0, top.indexOfFirst { it.first == at }), back = null)
     }
+
+    private var lastSettings = 0 // section used last, focused when settings open again
+
+    private fun <T> List<T>.step(current: T, dir: Int) = this[((indexOf(current) + dir) % size + size) % size]
 
     // Pages inside the settings panel (wallpaper list, app toggles…) instead of system dialogs, so they
     // match Plume's look. Back goes up one page; from the main list it closes the panel.
@@ -1015,7 +1057,8 @@ class MainActivity : Activity() {
 
     private fun page(title: String, value: String = "", action: () -> Unit) = Triple(title, value, action)
 
-    private fun showPage(title: String, rows: List<Triple<String, String, () -> Unit>>, focus: Int = 0, top: View? = null, back: (() -> Unit)?) {
+    private fun showPage(title: String, rows: List<Triple<String, String, () -> Unit>>, focus: Int = 0, top: View? = null,
+                         steps: List<((Int) -> Unit)?> = emptyList(), back: (() -> Unit)?) {
         pageExit?.invoke()
         pageExit = null
         pageBack = back
@@ -1023,16 +1066,18 @@ class MainActivity : Activity() {
         settingsList.removeAllViews()
         top?.let { settingsList.addView(it) }
         val first = settingsList.childCount
-        rows.forEach { (name, value, action) ->
-            settingsList.addView(settingsRow(name, value, action), LinearLayout.LayoutParams(MATCH_PARENT, dp(44)).apply {
+        rows.forEachIndexed { i, (name, value, action) ->
+            settingsList.addView(settingsRow(name, value, steps.getOrNull(i), action), LinearLayout.LayoutParams(MATCH_PARENT, dp(44)).apply {
                 topMargin = dp(4)
             })
         }
-        // Keep focus inside the panel: Up from the first row and Down from the last go nowhere.
+        // Focus wraps: Up from the first row goes to the last, Down from the last to the first.
         (settingsList.parent as View).scrollTo(0, 0)
         if (rows.isEmpty()) return // a page that's all [top], like the PIN boxes, focuses itself
-        settingsList.getChildAt(first).let { it.nextFocusUpId = it.id }
-        settingsList.getChildAt(first + rows.size - 1).let { it.nextFocusDownId = it.id }
+        val firstRow = settingsList.getChildAt(first)
+        val lastRow = settingsList.getChildAt(first + rows.size - 1)
+        firstRow.nextFocusUpId = lastRow.id
+        lastRow.nextFocusDownId = firstRow.id
         settingsList.getChildAt(first + focus.coerceIn(0, rows.size - 1)).requestFocus()
     }
 
@@ -1071,8 +1116,8 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun setLock(): Unit = pinPage(getString(R.string.choose_pin), { renderSettings(LOCK_ROW) }) { first ->
-        pinPage(getString(R.string.enter_again), { renderSettings(LOCK_ROW) }) { again ->
+    private fun setLock(): Unit = pinPage(getString(R.string.choose_pin), { renderSettings(R.string.lock_layout) }) { first ->
+        pinPage(getString(R.string.enter_again), { renderSettings(R.string.lock_layout) }) { again ->
             if (again != first) {
                 Toast.makeText(this, getString(R.string.pins_mismatch), Toast.LENGTH_LONG).show()
                 setLock()
@@ -1080,7 +1125,7 @@ class MainActivity : Activity() {
             }
             prefs.edit().putString("lock_pin", hashPin(first)).apply()
             unlockedUntil = SystemClock.elapsedRealtime() + UNLOCKED_MS // no PIN straight away for the one who set it
-            renderSettings(LOCK_ROW)
+            renderSettings(R.string.lock_layout)
             Toast.makeText(this, getString(R.string.layout_locked), Toast.LENGTH_LONG).show()
             null
         }
@@ -1168,7 +1213,8 @@ class MainActivity : Activity() {
         row.requestFocus()
     }
 
-    private fun settingsRow(title: String, value: String, action: () -> Unit): View {
+    /** A settings row; with [step], Left and Right change its value in place, and ‹ › show that while focused. */
+    private fun settingsRow(title: String, value: String, step: ((Int) -> Unit)? = null, action: () -> Unit): View {
         val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0, 0)).apply { cornerRadius = dp(8).toFloat() }
         return LinearLayout(this).apply {
             id = View.generateViewId()
@@ -1179,12 +1225,14 @@ class MainActivity : Activity() {
             isFocusable = true
             isClickable = true
             addView(label(title, 14f), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            if (value == TOGGLE_ON || value == TOGGLE_OFF) addView(switch(value == TOGGLE_ON), LinearLayout.LayoutParams(dp(36), dp(20)))
-            else addView(label(value, 13f).apply { alpha = 0.6f })
+            val shown = if (value == TOGGLE_ON || value == TOGGLE_OFF) null else label(value, 13f).apply { alpha = 0.6f }
+            if (shown == null) addView(switch(value == TOGGLE_ON), LinearLayout.LayoutParams(dp(36), dp(20))) else addView(shown)
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
                 bg.colors = if (!focused) intArrayOf(0, 0) else if (dark) cardLit else intArrayOf(Color.WHITE, Color.WHITE)
+                if (step != null) shown?.text = if (focused) "‹  $value  ›" else value
             }
+            tag = step // dispatchKeyEvent calls it for Left (-1) and Right (+1)
         }
     }
 
@@ -1549,11 +1597,15 @@ class MainActivity : Activity() {
                 return true
             }
         }
-        // The settings panel is a vertical list: don't let Left/Right leak focus to the home screen behind it.
-        // The PIN boxes and the city search box use them themselves.
+        // The settings panel is a vertical list: Left/Right step a row's value (its tag, see settingsRow) and
+        // never leak focus to the home screen behind it. The PIN boxes and the city search box use them themselves.
         if (settingsScrim.visibility == View.VISIBLE && currentFocus !== pinBox && currentFocus !is EditText &&
             (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || e.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
-        ) return true
+        ) {
+            @Suppress("UNCHECKED_CAST")
+            if (e.action == KeyEvent.ACTION_DOWN) (currentFocus?.tag as? (Int) -> Unit)?.invoke(if (e.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1)
+            return true
+        }
         if (editing && editKey(e, confirm)) return true
         if (e.action == KeyEvent.ACTION_DOWN && settingsScrim.visibility != View.VISIBLE && allApps.visibility != View.VISIBLE) {
             currentFocus?.let { homeNav(it, e.keyCode) }?.let { it.requestFocus(); return true }
@@ -1765,7 +1817,7 @@ class MainActivity : Activity() {
         val list = sortedApps()
         toggles(getString(R.string.apps_in_row), list.map { it.label to it.pkg }, "row_hidden", getString(R.string.shown), getString(R.string.hidden)) {
             renderApps()
-            renderSettings(7)
+            renderSettings(R.string.apps_in_row)
         }
     }
 
@@ -1861,7 +1913,7 @@ class MainActivity : Activity() {
                 if (galleryOn()) stopGallery()
                 pickScreensaver(2)
             },
-        ), focus) { renderSettings(SCREENSAVER_ROW) }
+        ), focus) { renderSettings(R.string.screensaver) }
     }
 
     /** Gallery on, with paintings ([folder] null, downloaded first if needed) or a folder of photos. */
@@ -1924,7 +1976,7 @@ class MainActivity : Activity() {
             ui.post {
                 downloading = false
                 if (ok) then() else Toast.makeText(this, getString(R.string.paintings_failed), Toast.LENGTH_LONG).show()
-                if (settingsScrim.visibility == View.VISIBLE) renderSettings(SCREENSAVER_ROW)
+                if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.screensaver)
             }
         }.start()
     }
@@ -1953,7 +2005,7 @@ class MainActivity : Activity() {
     private fun checkUpdate(force: Boolean) {
         if (checking || !force && System.currentTimeMillis() - prefs.getLong("upd_time", 0) < 24 * 3600_000L) return
         checking = true
-        if (force) renderSettings(UPDATE_ROW)
+        if (force) renderSettings(R.string.updates)
         io.execute {
             val latest = try {
                 getJson("https://api.github.com/repos/$REPO/releases/latest").getString("tag_name").removePrefix("v")
@@ -1972,7 +2024,7 @@ class MainActivity : Activity() {
                     Toast.makeText(this, if (latest == null) getString(R.string.update_check_failed) else getString(R.string.up_to_date_toast), Toast.LENGTH_SHORT).show()
                 }
                 updateBadge()
-                if (settingsScrim.visibility == View.VISIBLE) renderSettings(UPDATE_ROW)
+                if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.updates)
             }
         }
     }
@@ -1985,7 +2037,7 @@ class MainActivity : Activity() {
         showPage(getString(R.string.whats_new_title, myVersion()), listOf(
             if (ver != null) page(getString(R.string.install_update, ver)) { installUpdate(ver) }
             else page(getString(R.string.check_updates)) { checkUpdate(force = true) },
-        ), back = { renderSettings(UPDATE_ROW) })
+        ), back = { renderSettings(R.string.updates) })
         // Focusable, lit on focus, so Down walks through notes longer than the panel and it scrolls along.
         getString(R.string.whats_new).split('\n').forEach {
             settingsList.addView(label("", 13f).apply {
@@ -2027,7 +2079,7 @@ class MainActivity : Activity() {
             return openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
         }
         updating = true
-        renderSettings(UPDATE_ROW)
+        renderSettings(R.string.updates)
         val installer = packageManager.packageInstaller
         io.execute {
             val ok = try {
@@ -2063,7 +2115,7 @@ class MainActivity : Activity() {
                     updating = false
                     Toast.makeText(this, getString(R.string.update_download_failed), Toast.LENGTH_LONG).show()
                 }
-                if (settingsScrim.visibility == View.VISIBLE) renderSettings(UPDATE_ROW)
+                if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.updates)
             }
         }
     }
@@ -2084,7 +2136,7 @@ class MainActivity : Activity() {
                 Toast.makeText(this, getString(R.string.update_install_failed), Toast.LENGTH_LONG).show()
             }
         }
-        if (settingsScrim.visibility == View.VISIBLE) renderSettings(UPDATE_ROW)
+        if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.updates)
     }
 
     // ---------- weather (under the date) ----------
@@ -2162,16 +2214,16 @@ class MainActivity : Activity() {
         val rows = listOf(page(getString(R.string.automatic_ip), if (manualCity()) "" else CHOSEN) {
             prefs.edit().remove("geo_manual").remove("geo_time").remove("wx_time").apply()
             refreshWeather()
-            renderSettings(CITY_ROW)
+            renderSettings(R.string.weather_location)
         }) + found.orEmpty().map { c ->
             page(c.name, c.where) {
                 prefs.edit().putBoolean("geo_manual", true).putString("geo_city", c.name)
                     .putFloat("geo_lat", c.lat).putFloat("geo_lon", c.lon).remove("wx_time").apply()
                 refreshWeather()
-                renderSettings(CITY_ROW)
+                renderSettings(R.string.weather_location)
             }
         }
-        showPage(getString(R.string.weather_location), rows, if (found.isNullOrEmpty()) 0 else 1, top = top) { renderSettings(CITY_ROW) }
+        showPage(getString(R.string.weather_location), rows, if (found.isNullOrEmpty()) 0 else 1, top = top) { renderSettings(R.string.weather_location) }
         // showPage pins Up on the first row to itself; here Up goes to the search box.
         settingsList.getChildAt(1).nextFocusUpId = field.id
         if (found.isNullOrEmpty()) field.requestFocus()
@@ -2300,7 +2352,7 @@ class MainActivity : Activity() {
         toggles(getString(R.string.cw_apps), sources.map { it.label to it.pkg }, "cw_off", getString(R.string.on), getString(R.string.off)) {
             watchKey = null
             refreshWatchNext()
-            renderSettings(12)
+            renderSettings(R.string.cw_apps)
         }
     }
 
@@ -2577,12 +2629,6 @@ class MainActivity : Activity() {
         const val TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
         const val WRITE_SECURE = "android.permission.WRITE_SECURE_SETTINGS"
         const val ROLE_REQUEST = 2
-        const val CITY_ROW = 15 // positions in the settings list (see renderSettings)
-        const val SCREENSAVER_ROW = 16
-        const val HOME_BUTTON_ROW = 20
-        const val DEFAULT_HOME_ROW = 21
-        const val UPDATE_ROW = 22
-        const val LOCK_ROW = 23
         val ROW_ALIGN = linkedMapOf( // setting -> its name, and the row's gravity in the scroller
             "left" to (R.string.align_left to Gravity.START),
             "centre" to (R.string.align_centre to Gravity.CENTER_HORIZONTAL),

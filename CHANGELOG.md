@@ -21,7 +21,11 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - A guided setup makes the Home button open Plume. To do it again, select **Plume settings → Set up Home button**.
 - A red dot on the Plume settings icon tells you about a new update or new update notes.
 - **Plume settings → Updates** shows what is new in this version.
-- You can put a short app row on the left, in the centre or on the right. Select **Plume settings → App row position**.
+- You can put a short app row on the left, in the centre or on the right. Select **Plume settings → App row → App row position**.
+- **Plume settings** has sections. Each section shows its current settings.
+- Push Left or Right to change a value, for example **Theme** or **Weather units**.
+- At the top of a list, push Up to go to the bottom.
+- Plume settings opens at the section that you used last.
 
 ## 1.3
 
