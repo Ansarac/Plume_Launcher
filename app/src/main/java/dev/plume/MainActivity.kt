@@ -112,6 +112,16 @@ internal fun folderPhotos(cr: ContentResolver, choice: String): List<Long> =
     cr.query(PHOTOS, arrayOf(MediaStore.Images.Media._ID), "${MediaStore.Images.Media.BUCKET_ID} = ?", arrayOf(choice.split(':')[1]), null)
         ?.use { c -> List(c.count) { c.moveToNext(); c.getLong(0) } } ?: emptyList()
 
+/**
+ * Sort key of a Watch Next row: what you started comes before suggestions (types other than 0, "continue"), then
+ * newest first. Some apps write the time in seconds, not milliseconds (Wholphin does, for what is playing): a number
+ * that small is read as seconds, or it would sort a thousand times older than every other row.
+ */
+internal fun watchKey(type: Long, engaged: Long): Long {
+    val millis = if (engaged in 1 until 100_000_000_000L) engaged * 1000 else engaged
+    return (if (type == 0L) 1L shl 50 else 0L) + millis
+}
+
 /** Newest first across apps (ties keep their order), at most [perApp] per app: one app's ten shows can't bury the rest. */
 internal fun <T> newestPerApp(items: List<Pair<Long, T>>, perApp: Int, app: (T) -> String?): List<T> {
     val shown = HashMap<String?, Int>()
@@ -2377,7 +2387,7 @@ class MainActivity : Activity() {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!
         val watchNext = readPrograms(TvContract.WatchNextPrograms.CONTENT_URI, hidden)
         val channels = continueChannels().flatMap { id ->
-            readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden).map { (_, p) -> prefs.getLong("t_${p.pkg}", 0) to p }
+            readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden).map { (_, p) -> watchKey(0, prefs.getLong("t_${p.pkg}", 0)) to p }
         }
         val all = watchNext + channels
         publishingPkgs = all.mapNotNull { it.second.pkg }.toSet()
@@ -2430,7 +2440,7 @@ class MainActivity : Activity() {
         return ids
     }
 
-    /** Pairs of (last engagement time, item); time is 0 for channel rows, which don't have it. */
+    /** Pairs of (sort key, item), see [watchKey]; channel rows have no time of their own and get the type "continue". */
     private fun readPrograms(uri: Uri, hidden: Set<String>): List<Pair<Long, Prog>> {
         val out = ArrayList<Pair<Long, Prog>>()
         contentResolver.query(uri, null, null, null, null)?.use { c ->
@@ -2451,7 +2461,7 @@ class MainActivity : Activity() {
                 ).joinToString(" - ")
                 val progress = if (duration > 0 && position >= 1000) (position * 100 / duration).toInt().coerceIn(0, 100) else 0
                 val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), str("package_name"))
-                out += num("last_engagement_time_utc_millis") to prog
+                out += watchKey(num("watch_next_type"), num("last_engagement_time_utc_millis")) to prog
             }
         }
         return out
