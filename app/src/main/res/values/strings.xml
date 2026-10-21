@@ -175,4 +175,9 @@
     <string name="align_left">Left</string>
     <string name="align_centre">Centre</string>
     <string name="align_right">Right</string>
+    <string name="section_appearance">Appearance</string>
+    <string name="section_app_row">App row</string>
+    <string name="section_weather">Weather</string>
+    <string name="section_screensaver">Screensaver</string>
+    <string name="section_home">Home button</string>
 </resources>
