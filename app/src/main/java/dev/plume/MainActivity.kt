@@ -550,7 +550,8 @@ class MainActivity : Activity() {
             getString(R.string.whats_new).split('\n').take(3).forEach {
                 addView(label("", 15f).apply {
                     text = SpannableString(it).apply { setSpan(BulletSpan(dp(10), fg), 0, it.length, 0) }
-                    maxLines = 3
+                    maxLines = Int.MAX_VALUE
+                    ellipsize = null
                     setLineSpacing(0f, 1.15f)
                     setPadding(0, dp(12), 0, 0)
                 })
