@@ -1817,16 +1817,23 @@ class MainActivity : Activity() {
             }
             elevation = if (dark) 0f else dp(8).toFloat()
         }
-        val menu = PopupWindow(list, dp(260), LinearLayout.LayoutParams.WRAP_CONTENT, true)
+        val menu = PopupWindow(list, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true)
         items.forEachIndexed { i, (name, action) ->
-            list.addView(settingsRow(name, "") { menu.dismiss(); action() }, LinearLayout.LayoutParams(MATCH_PARENT, dp(40)).apply {
+            list.addView(settingsRow(name, "") { menu.dismiss(); action() }, LinearLayout.LayoutParams(MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 if (i > 0) topMargin = dp(2)
             })
+            list.getChildAt(i).minimumHeight = dp(40)
         }
+        // As wide as the longest item, never narrower than the tile or card it opens from.
+        // A very long translation wraps onto two lines instead of stretching across the screen.
         list.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        menu.width = list.measuredWidth.coerceIn(anchor.width, maxOf(anchor.width, dp(360)))
+        list.measure(View.MeasureSpec.makeMeasureSpec(menu.width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
         val at = IntArray(2).also { anchor.getLocationInWindow(it) }
         menu.elevation = if (dark) 0f else dp(8).toFloat()
-        menu.showAtLocation(anchor, Gravity.NO_GRAVITY, at[0], maxOf(dp(8), at[1] - list.measuredHeight - dp(8)))
+        // Over the anchor's left edge, but kept inside the row's 48 dp side margin near the right of the screen.
+        val x = minOf(at[0], resources.displayMetrics.widthPixels - dp(48) - menu.width)
+        menu.showAtLocation(anchor, Gravity.NO_GRAVITY, x, maxOf(dp(8), at[1] - list.measuredHeight - dp(8)))
         list.getChildAt(0).requestFocus()
     }
 

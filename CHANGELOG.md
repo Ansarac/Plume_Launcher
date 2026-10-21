@@ -19,6 +19,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - Plume is smaller: the download is 364 KB, not 441 KB. The built-in day wallpaper is now a WebP image.
 - After an update, a card shows what is new. Select **See all changes** to read all of it.
 - Every HDMI input can be a tile. A device that names itself, like a PS5, Xbox or Nintendo Switch, gets a tile with its logo. Other HDMI devices get a tile while they send a picture. Every HDMI input is in **All apps**. Hold OK on one to pin it to the row.
+- The menu that opens when you hold OK is now only as wide as its longest item. Near the right edge of the screen it stays inside the side margin.
 - You can set the weather location by hand. Select **Plume settings → Weather location**.
 - **Plume settings → Home button** is now a switch. Use it to turn the Home button on or off.
 - All the text in Plume is now in one file. This makes translation easier.
