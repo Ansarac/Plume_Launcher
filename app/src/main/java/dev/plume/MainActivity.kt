@@ -124,6 +124,34 @@ internal fun hashPin(pin: String, salt: String = ByteArray(8).also { SecureRando
 
 internal fun pinMatches(stored: String, pin: String) = hashPin(pin, stored.substringBefore(':')) == stored
 
+private val SET_TOP_WORDS = listOf("sky", "tivo", "xfinity", "comcast", "directv", "dish", "stb", "set-top", "settop", "cable", "satellite", "freesat", "freeview")
+private val AUDIO_WORDS = listOf("soundbar", "sound bar", "sonos", "avr", "receiver", "home theater", "home theatre", "bose", "denon", "marantz", "onkyo", "yamaha", "harman", "jbl")
+
+/**
+ * Icon key for an HDMI tile, from its name: the CEC device name, or the name the user gave the input in TV
+ * settings. Android doesn't give apps the CEC device type, so the name is all there is. One brand word covers
+ * the family ("PlayStation" is PS3 to PS5). [named]: a CEC device, which is a player when nothing else matches.
+ */
+internal fun hdmiIcon(name: String, named: Boolean): String {
+    val n = name.lowercase()
+    return when {
+        "playstation" in n -> "playstation"
+        "xbox" in n -> "xbox"
+        "nintendo" in n || "switch" in n -> "nintendoswitch"
+        "apple tv" in n || "appletv" in n -> "appletv"
+        SET_TOP_WORDS.any { it in n } -> "settop"
+        named -> "playback"
+        else -> "hdmi"
+    }
+}
+
+/** Soundbars and AV receivers name themselves over CEC too, but there's nothing to switch to. */
+internal fun isAudioDevice(name: String) = name.lowercase().let { n -> AUDIO_WORDS.any { it in n } }
+
+/** A plain HDMI port (no CEC name) is in the home row only while it has a signal, unless it was pinned by hand. */
+internal fun inRow(pkg: String, offline: Boolean, hidden: Set<String>, pinned: Set<String>) =
+    pkg !in hidden && (!offline || pkg in pinned)
+
 /** Allowed to start an activity from the background because the Home button service is bound. */
 class Updated : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
@@ -133,7 +161,8 @@ class Updated : BroadcastReceiver() {
 
 class MainActivity : Activity() {
 
-    private class App(val pkg: String, val label: String, val launch: Intent, val icon: Drawable)
+    /** [offline]: an HDMI port with no signal right now (see inRow). */
+    private class App(val pkg: String, val label: String, val launch: Intent, val icon: Drawable, val offline: Boolean = false)
     private class Prog(val title: String, val sub: String, val progress: Int, val image: String?, val intent: String?, val pkg: String?)
 
     private val prefs by lazy { getSharedPreferences("home", MODE_PRIVATE) }
@@ -1319,28 +1348,32 @@ class MainActivity : Activity() {
                         .setComponent(ComponentName(a.packageName, a.name)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     a.loadIcon(pm),
                 )
-            } + consoleInputs()
+            } + hdmiInputs()
     }
 
     /**
-     * Devices on HDMI that name themselves over CEC (the PS5 shows up as "PlayStation 5"), as app tiles.
-     * Opening one switches the TV to that HDMI input, which also wakes the device over CEC.
+     * One tile per HDMI port, keyed by the port's input id. A device that names itself over CEC (the PS5 shows up
+     * as "PlayStation 5") takes over its port's tile; it's listed while asleep too, and opening the tile wakes it.
+     * A port without one is a tile named as in TV settings ("HDMI 2"), in the row only while it has a signal.
      */
-    private fun consoleInputs(): List<App> = try {
-        getSystemService(TvInputManager::class.java).tvInputList
-            .filter { it.type == TvInputInfo.TYPE_HDMI && it.parentId != null }
-            .map { input ->
-                val label = input.loadLabel(this).toString()
-                val ps = label.contains("PlayStation", ignoreCase = true)
-                App(
-                    HDMI + input.parentId,
-                    label,
-                    Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(input.parentId))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    if (ps) getDrawable(R.drawable.logo_playstation)!! else input.loadIcon(this) ?: getDrawable(R.drawable.ic_apps)!!,
-                )
-            }
-            .distinctBy { it.pkg }
+    private fun hdmiInputs(): List<App> = try {
+        val tv = getSystemService(TvInputManager::class.java)
+        val inputs = tv.tvInputList.filter { it.type == TvInputInfo.TYPE_HDMI && !it.isHidden(this) }
+        val devices = inputs.filter { it.parentId != null }
+        val audio = devices.filter { isAudioDevice(it.loadLabel(this).toString()) }.map { it.parentId }.toSet()
+        // Devices first, so distinctBy keeps the device over its port.
+        (devices + inputs.filter { it.parentId == null }).filter { (it.parentId ?: it.id) !in audio }.map { input ->
+            val port = input.parentId ?: input.id
+            val named = input.parentId != null
+            val label = (if (named) input.loadLabel(this) else input.loadCustomLabel(this) ?: input.loadLabel(this)).toString()
+            App(
+                HDMI + port,
+                label,
+                Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(port)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                getDrawable(HDMI_ICONS[hdmiIcon(label, named)]!!)!!,
+                offline = !named && tv.getInputState(port) != TvInputManager.INPUT_STATE_CONNECTED,
+            )
+        }.distinctBy { it.pkg }
     } catch (e: Exception) {
         emptyList()
     }
@@ -1348,7 +1381,11 @@ class MainActivity : Activity() {
     private val inputCallback = object : TvInputManager.TvInputCallback() {
         override fun onInputAdded(id: String) = refreshApps()
         override fun onInputRemoved(id: String) = refreshApps()
+        override fun onInputStateChanged(id: String, state: Int) = refreshApps()
     }
+
+    /** HDMI ports pinned to the row by hand: shown with or without a signal (some TVs never report one). */
+    private fun pinnedInputs() = prefs.getStringSet("inputs_pinned", emptySet())!!
 
     private fun sortedApps(): List<App> {
         // Streaming apps first by default, then alphabetical; manual order or usage overrides.
@@ -1391,7 +1428,8 @@ class MainActivity : Activity() {
         val width = (resources.displayMetrics.widthPixels - dp(96) - gap * (ROW_TILES - 1)) / ROW_TILES
         appRow.removeAllViews()
         val hidden = rowHiddenSet()
-        val tiles = sortedApps().filter { it.pkg !in hidden }.map { appTile(it, labeled = false) }
+        val pinned = pinnedInputs()
+        val tiles = sortedApps().filter { inRow(it.pkg, it.offline, hidden, pinned) }.map { appTile(it, labeled = false) }
         if (tiles.isEmpty()) return showNames()
         tiles.forEachIndexed { i, t ->
             t.id = View.generateViewId()
@@ -1428,7 +1466,7 @@ class MainActivity : Activity() {
         val t = when {
             custom != null -> tile(name, custom, false, a.pkg) { launch(a) }
             a.pkg.startsWith(HDMI) -> tile(name, a.icon, true, a.pkg,
-                tint = BRAND_COLOURS["playstation"]?.takeIf { colour && a.label.contains("PlayStation", ignoreCase = true) }) { launch(a) }
+                tint = BRAND_COLOURS[hdmiIcon(a.label, true)]?.takeIf { colour }) { launch(a) }
             logo != null -> tile(name.takeIf { !logo.second }, getDrawable(logo.first)!!, true, a.pkg,
                 wordmarkInset = if (!logo.second) null else dp(if (labeled) 28 else 14),
                 tint = BRAND_COLOURS[a.pkg]?.takeIf { colour }) { launch(a) }
@@ -1689,7 +1727,9 @@ class MainActivity : Activity() {
         val tag = v.tag as? String
         when {
             allApps.visibility == View.VISIBLE && tag != null -> unlock { // grid: pin to the front of the row (unhiding it)
-                prefs.edit().putStringSet("row_hidden", rowHiddenSet() - tag).apply()
+                val edit = prefs.edit().putStringSet("row_hidden", rowHiddenSet() - tag)
+                if (tag.startsWith(HDMI)) edit.putStringSet("inputs_pinned", pinnedInputs() + tag)
+                edit.apply()
                 saveOrder(listOf(tag) + sortedApps().map { it.pkg }.filter { it != tag })
                 closeAllApps()
                 appRow.getChildAt(0)?.requestFocus() // show the app just pinned
@@ -1710,7 +1750,10 @@ class MainActivity : Activity() {
             getString(R.string.move) to { startEdit(grab = v, once = true) },
             getString(R.string.remove_from_row) to {
                 val i = appRow.indexOfChild(v)
-                prefs.edit().putStringSet("row_hidden", rowHiddenSet() + pkg).apply()
+                // A port with no signal just unpins: hiding it would keep out whatever gets plugged in there later.
+                val offline = apps.any { it.pkg == pkg && it.offline }
+                prefs.edit().putStringSet("row_hidden", if (offline) rowHiddenSet() else rowHiddenSet() + pkg)
+                    .putStringSet("inputs_pinned", pinnedInputs() - pkg).apply()
                 renderApps()
                 appRow.getChildAt(minOf(i, appRow.childCount - 1))?.requestFocus()
                 Toast.makeText(this, getString(R.string.removed_from_row), Toast.LENGTH_SHORT).show()
@@ -1831,7 +1874,8 @@ class MainActivity : Activity() {
     private fun rowHiddenSet() = prefs.getStringSet("row_hidden", emptySet())!!
 
     private fun pickRowApps() {
-        val list = sortedApps()
+        // An HDMI port without a signal can't show in the row, so it's pinned from All apps instead.
+        val list = sortedApps().filter { !it.offline || it.pkg in pinnedInputs() }
         toggles(getString(R.string.apps_in_row), list.map { it.label to it.pkg }, "row_hidden", getString(R.string.shown), getString(R.string.hidden)) {
             renderApps()
             renderSettings(R.string.apps_in_row)
@@ -2737,6 +2781,8 @@ class MainActivity : Activity() {
          */
         val BRAND_COLOURS = mapOf(
             "playstation" to 0xFF0070D1.toInt(),
+            "xbox" to 0xFF107C10.toInt(),
+            "nintendoswitch" to 0xFFE60012.toInt(),
             "com.netflix.ninja" to 0xFFE50914.toInt(),
             "com.stremio.one" to 0xFF8D3DAF.toInt(),
             "io.gh.reisxd.tizentube.cobalt" to 0xFFFF0000.toInt(),
@@ -2755,6 +2801,17 @@ class MainActivity : Activity() {
             "com.google.android.youtube.tv",
             "com.amazon.amazonvideo.livingroom",
             "com.spotify.tv.android",
+        )
+
+        /** HDMI tile icons by hdmiIcon key: brand marks (Simple Icons, CC0), the rest from Material Symbols (Apache 2.0). */
+        val HDMI_ICONS = mapOf(
+            "playstation" to R.drawable.logo_playstation,
+            "xbox" to R.drawable.logo_xbox,
+            "nintendoswitch" to R.drawable.logo_nintendoswitch,
+            "appletv" to R.drawable.logo_appletv,
+            "settop" to R.drawable.ic_settop,
+            "playback" to R.drawable.ic_playback,
+            "hdmi" to R.drawable.ic_hdmi,
         )
 
         /** Monochrome brand marks (Simple Icons, CC0). `true` = wordmark, shown without a label. */
