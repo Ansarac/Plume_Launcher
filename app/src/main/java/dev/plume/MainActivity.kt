@@ -940,21 +940,26 @@ class MainActivity : Activity() {
                 renderSettings(6)
             },
             Triple(getString(R.string.apps_in_row), if (rowHidden == 0) getString(R.string.all) else getString(R.string.n_of_m, apps.size - rowHidden, apps.size)) { pickRowApps() },
+            Triple(getString(R.string.row_position), getString(ROW_ALIGN[rowAlign()]!!.first)) {
+                prefs.edit().putString("row_align", ROW_ALIGN.keys.let { it.elementAt((it.indexOf(rowAlign()) + 1) % it.size) }).apply()
+                alignRow()
+                renderSettings(8)
+            },
             Triple(getString(R.string.app_names), mapOf("focus" to getString(R.string.on_focus), "always" to getString(R.string.always), "never" to getString(R.string.never))[names]!!) {
                 prefs.edit().putString("names", mapOf("focus" to "always", "always" to "never", "never" to "focus")[names]).apply()
                 renderApps()
-                renderSettings(8)
+                renderSettings(9)
             },
             Triple(getString(R.string.icon_style), if (colour) getString(R.string.colour) else getString(R.string.monochrome)) {
                 prefs.edit().putBoolean("colour_icons", !colour).apply()
                 renderApps()
-                renderSettings(9)
+                renderSettings(10)
             },
             Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else getString(R.string.n_hidden, hidden)) {
                 prefs.edit().remove("hidden_watch").apply()
                 watchKey = null
                 refreshWatchNext()
-                renderSettings(10)
+                renderSettings(11)
             },
             Triple(getString(R.string.cw_apps), if (cwOff == 0) getString(R.string.all_on) else getString(R.string.n_off, cwOff)) { pickWatchSources() },
             // "weather" is off/c/f as before; "wx_unit" keeps the unit while it's off.
@@ -964,13 +969,13 @@ class MainActivity : Activity() {
                 showWeather()
                 ui.removeCallbacks(weatherTick)
                 ui.post(weatherTick)
-                renderSettings(12)
+                renderSettings(13)
             },
             Triple(getString(R.string.weather_units), if (unit == "f") "°F" else "°C") {
                 val next = if (unit == "f") "c" else "f"
                 prefs.edit().putString("wx_unit", next).putString("weather", if (weather == "off") "off" else next).apply()
                 showWeather()
-                renderSettings(13)
+                renderSettings(14)
             },
             Triple(getString(R.string.weather_location), if (manualCity()) prefs.getString("geo_city", null) ?: "" else "Automatic") { pickCity() },
             Triple(getString(R.string.screensaver), when {
@@ -1300,6 +1305,19 @@ class MainActivity : Activity() {
      * Every app, logo only, on the same 8-column grid as the Continue Watching cards (one card = two
      * tiles), so 8 show at once and the row scrolls for the rest. All apps and Settings are in the top bar.
      */
+    private fun rowAlign() = prefs.getString("row_align", "left")!!.takeIf { it in ROW_ALIGN } ?: "left"
+
+    /**
+     * A row shorter than the screen sits left, centred or right. A longer row always starts at the left:
+     * centred, the scroller would push its first tiles out of reach.
+     */
+    private fun alignRow() {
+        val content = appRow.parent as View
+        (content.layoutParams as FrameLayout.LayoutParams).gravity =
+            if (appTileCount() > ROW_TILES) Gravity.START else ROW_ALIGN[rowAlign()]!!.second
+        content.requestLayout()
+    }
+
     private fun renderApps() {
         val focusedTag = currentFocus?.tag
         // Rebuilds can happen in the background (an app or HDMI device added); only take focus if the row had it.
@@ -1321,6 +1339,7 @@ class MainActivity : Activity() {
             }
         }
         showNames()
+        alignRow()
         if (takeFocus) (tiles.firstOrNull { it.tag == focusedTag } ?: tiles[0]).requestFocus()
         if (!prefs.getBoolean("tip_move", false)) {
             prefs.edit().putBoolean("tip_move", true).apply()
@@ -2281,7 +2300,7 @@ class MainActivity : Activity() {
         toggles(getString(R.string.cw_apps), sources.map { it.label to it.pkg }, "cw_off", getString(R.string.on), getString(R.string.off)) {
             watchKey = null
             refreshWatchNext()
-            renderSettings(11)
+            renderSettings(12)
         }
     }
 
@@ -2558,12 +2577,17 @@ class MainActivity : Activity() {
         const val TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
         const val WRITE_SECURE = "android.permission.WRITE_SECURE_SETTINGS"
         const val ROLE_REQUEST = 2
-        const val CITY_ROW = 14 // positions in the settings list (see renderSettings)
-        const val SCREENSAVER_ROW = 15
-        const val HOME_BUTTON_ROW = 19
-        const val DEFAULT_HOME_ROW = 20
-        const val UPDATE_ROW = 21
-        const val LOCK_ROW = 22
+        const val CITY_ROW = 15 // positions in the settings list (see renderSettings)
+        const val SCREENSAVER_ROW = 16
+        const val HOME_BUTTON_ROW = 20
+        const val DEFAULT_HOME_ROW = 21
+        const val UPDATE_ROW = 22
+        const val LOCK_ROW = 23
+        val ROW_ALIGN = linkedMapOf( // setting -> its name, and the row's gravity in the scroller
+            "left" to (R.string.align_left to Gravity.START),
+            "centre" to (R.string.align_centre to Gravity.CENTER_HORIZONTAL),
+            "right" to (R.string.align_right to Gravity.END),
+        )
         const val BADGE = 0xFFFF453A.toInt()
         const val HELP_URL = "https://github.com/aradhyas8/Plume_Launcher#home-button-on-android-13-and-newer"
         const val TOGGLE_ON = "\u0000on" // row values drawn as a switch instead of text

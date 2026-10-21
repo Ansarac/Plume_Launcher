@@ -171,4 +171,8 @@
     <string name="whats_new_title">What\'s new in %1$s</string>
     <string name="check_updates">Check for updates</string>
     <string name="install_update">Install %1$s</string>
+    <string name="row_position">App row position</string>
+    <string name="align_left">Left</string>
+    <string name="align_centre">Centre</string>
+    <string name="align_right">Right</string>
 </resources>
