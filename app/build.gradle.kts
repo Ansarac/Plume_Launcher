@@ -15,6 +15,16 @@ android {
         targetSdk = 36
         versionCode = 5
         versionName = "1.3"
+        // What's new: only this version's section of CHANGELOG.md ships, one entry per line, without ** marks.
+        val notes = rootProject.file("CHANGELOG.md").readText().replace("\r", "")
+            .substringAfter("\n## $versionName\n", "").substringBefore("\n## ")
+            .lines().filter { it.startsWith("- ") }.map { it.removePrefix("- ").replace("**", "") }
+        require(notes.isNotEmpty()) { "CHANGELOG.md has no entries under \"## $versionName\"" }
+        resValue("string", "whats_new", notes.joinToString("\\n") { it.replace("'", "\\'").replace("\"", "\\\"") })
+    }
+
+    buildFeatures {
+        resValues = true
     }
 
     // Release key lives outside the repo; keystore.properties (git-ignored) points at it. Without that file

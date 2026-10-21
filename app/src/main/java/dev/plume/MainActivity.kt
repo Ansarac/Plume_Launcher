@@ -49,7 +49,9 @@ import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.Settings
 import android.text.InputType
+import android.text.SpannableString
 import android.text.TextUtils
+import android.text.style.BulletSpan
 import android.util.LruCache
 import android.view.Gravity
 import android.view.KeyEvent
@@ -265,6 +267,7 @@ class MainActivity : Activity() {
         // Gallery chosen but its paintings missing (updated from a version that bundled them): fetch them.
         if (galleryOn() && photoScreensaver() == null && !paintingsReady(this)) downloadPaintings {}
         checkUpdate(force = false)
+        ui.post { updateBadge() } // after layout, so the icon has its size
     }
 
     /** Auto theme flips at 7:00 and 19:00 even while the home screen just sits there. */
@@ -984,8 +987,9 @@ class MainActivity : Activity() {
                 updating -> getString(R.string.updating)
                 checking -> getString(R.string.checking)
                 availableUpdate() != null -> getString(R.string.update_available_row, availableUpdate())
+                notesUnseen() -> getString(R.string.whats_new_title, myVersion())
                 else -> getString(R.string.up_to_date_row, myVersion())
-            }) { availableUpdate()?.let { installUpdate(it) } ?: checkUpdate(force = true) },
+            }) { showUpdates() },
             Triple(getString(R.string.lock_layout), toggle(lockOn())) {
                 if (!lockOn()) return@Triple setLock()
                 prefs.edit().remove("lock_pin").apply()
@@ -1948,9 +1952,53 @@ class MainActivity : Activity() {
                 } else if (force) {
                     Toast.makeText(this, if (latest == null) getString(R.string.update_check_failed) else getString(R.string.up_to_date_toast), Toast.LENGTH_SHORT).show()
                 }
+                updateBadge()
                 if (settingsScrim.visibility == View.VISIBLE) renderSettings(UPDATE_ROW)
             }
         }
+    }
+
+    /** What's new in this version (the CHANGELOG.md section the build put in), with check or install on top. */
+    private fun showUpdates() {
+        prefs.edit().putString("seen_notes", myVersion()).apply()
+        updateBadge()
+        val ver = availableUpdate()
+        showPage(getString(R.string.whats_new_title, myVersion()), listOf(
+            if (ver != null) page(getString(R.string.install_update, ver)) { installUpdate(ver) }
+            else page(getString(R.string.check_updates)) { checkUpdate(force = true) },
+        ), back = { renderSettings(UPDATE_ROW) })
+        // Focusable, lit on focus, so Down walks through notes longer than the panel and it scrolls along.
+        getString(R.string.whats_new).split('\n').forEach {
+            settingsList.addView(label("", 13f).apply {
+                text = SpannableString(it).apply { setSpan(BulletSpan(dp(10), fg), 0, it.length, 0) }
+                maxLines = Int.MAX_VALUE
+                ellipsize = null
+                alpha = 0.7f
+                isFocusable = true
+                setOnFocusChangeListener { v, focused -> v.alpha = if (focused) 1f else 0.7f }
+                setPadding(dp(14), dp(10), dp(14), dp(2))
+            })
+        }
+        settingsList.getChildAt(0).nextFocusDownId = View.NO_ID // showPage stops Down at its last row
+        settingsList.getChildAt(settingsList.childCount - 1).let { it.id = View.generateViewId(); it.nextFocusDownId = it.id }
+    }
+
+    /** Notes the user hasn't opened since updating. A fresh install has nothing new to tell. */
+    private fun notesUnseen(): Boolean {
+        val info = packageManager.getPackageInfo(packageName, 0)
+        return info.firstInstallTime != info.lastUpdateTime && prefs.getString("seen_notes", null) != info.versionName
+    }
+
+    private val badge by lazy { GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(BADGE) } }
+
+    /** A dot on the Plume settings icon while an update waits or its notes are unread. */
+    private fun updateBadge() {
+        val icon = findViewById<ImageView>(R.id.launcherSettings)
+        icon.overlay.clear()
+        if (availableUpdate() == null && !notesUnseen()) return
+        val size = dp(9)
+        badge.setBounds(icon.width - size - dp(3), dp(3), icon.width - dp(3), dp(3) + size)
+        icon.overlay.add(badge)
     }
 
     private fun installUpdate(ver: String) {
@@ -2516,6 +2564,7 @@ class MainActivity : Activity() {
         const val DEFAULT_HOME_ROW = 20
         const val UPDATE_ROW = 21
         const val LOCK_ROW = 22
+        const val BADGE = 0xFFFF453A.toInt()
         const val HELP_URL = "https://github.com/aradhyas8/Plume_Launcher#home-button-on-android-13-and-newer"
         const val TOGGLE_ON = "\u0000on" // row values drawn as a switch instead of text
         const val TOGGLE_OFF = "\u0000off"
