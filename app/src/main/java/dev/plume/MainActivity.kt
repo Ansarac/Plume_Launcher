@@ -1748,7 +1748,10 @@ class MainActivity : Activity() {
             getString(R.string.move) to { startEdit(grab = v, once = true) },
             getString(R.string.remove_from_row) to {
                 val i = appRow.indexOfChild(v)
-                prefs.edit().putStringSet("row_hidden", rowHiddenSet() + pkg).putStringSet("inputs_pinned", pinnedInputs() - pkg).apply()
+                // A port with no signal just unpins: hiding it would keep out whatever gets plugged in there later.
+                val offline = apps.any { it.pkg == pkg && it.offline }
+                prefs.edit().putStringSet("row_hidden", if (offline) rowHiddenSet() else rowHiddenSet() + pkg)
+                    .putStringSet("inputs_pinned", pinnedInputs() - pkg).apply()
                 renderApps()
                 appRow.getChildAt(minOf(i, appRow.childCount - 1))?.requestFocus()
                 Toast.makeText(this, getString(R.string.removed_from_row), Toast.LENGTH_SHORT).show()
