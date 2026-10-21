@@ -132,6 +132,7 @@
     <string name="hidden_from_cw">Masqué de Reprendre la lecture</string>
     <plurals name="photo_count">
         <item quantity="one">%d photo</item>
+        <item quantity="many">%d de photos</item>
         <item quantity="other">%d photos</item>
     </plurals>
     <string name="network_settings">Paramètres réseau</string>
