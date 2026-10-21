@@ -2532,21 +2532,31 @@ class MainActivity : Activity() {
             return
         }
         watchKey = key
+        watchList = list
         val focusedAt = watchRow.indexOfChild(currentFocus?.parent as? View)
         watchRow.removeAllViews()
         val visible = if (list.isEmpty()) View.GONE else View.VISIBLE
         watchTitle.visibility = visible
         watchScroll.visibility = visible
-        // ~16 ms per card here and only four show at once: build them four per frame, not all 20 in one.
-        fun addCards(from: Int) {
-            if (watchKey != key) return // a newer list replaced this one
-            list.subList(from, minOf(from + 4, list.size)).forEach { watchRow.addView(watchCard(it, watchRow.childCount > 0)) }
-            if (from + 4 < list.size) ui.post { addCards(from + 4) }
-        }
-        addCards(0)
+        // ~16 ms per card here and only four show at once: the first four now, the next four on the next frame.
+        addCardsTo(3)
+        ui.post { if (watchKey == key) addCardsTo(CARDS_AHEAD - 1) } // unless a newer list replaced this one
         if (focusedAt >= 0) {
             ((watchRow.getChildAt(focusedAt.coerceAtMost(watchRow.childCount - 1)) as? LinearLayout)?.getChildAt(0)
                 ?: appRow.getChildAt(0))?.requestFocus()
+        }
+    }
+
+    private var watchList = emptyList<Prog>()
+
+    /**
+     * Cards exist up to index [last] only: the four on screen and the four after them, more as focus moves on.
+     * Every card costs drawing time on each frame of the home screen (20 dropped ~6% of frames on the test
+     * TV, 8 about 2%), on screen or not, so the rest of the list waits until focus gets near.
+     */
+    private fun addCardsTo(last: Int) {
+        while (watchRow.childCount <= minOf(last, watchList.size - 1)) {
+            watchRow.addView(watchCard(watchList[watchRow.childCount], watchRow.childCount > 0))
         }
     }
 
@@ -2578,7 +2588,10 @@ class MainActivity : Activity() {
         val frame = FrameLayout(this)
         style(frame, dp(8), card = true, lift = 1.1f) { focused ->
             title.isSelected = focused
-            if (focused) lastCard = frame
+            if (focused) {
+                lastCard = frame
+                addCardsTo(watchRow.indexOfChild(col) + CARDS_AHEAD)
+            }
         }
         frame.contentDescription = p.title
         frame.addView(img, MATCH_PARENT, MATCH_PARENT)
@@ -2777,6 +2790,7 @@ class MainActivity : Activity() {
         const val UNLOCKED_MS = 5 * 60_000L
         const val MEDIA_REQUEST = 3
         const val PER_APP = 3 // Continue Watching items per app ahead of the rest
+        const val CARDS_AHEAD = 8 // Continue Watching cards built past the focused one (see addCardsTo)
         val READ_PHOTOS = if (Build.VERSION.SDK_INT >= 33) "android.permission.READ_MEDIA_IMAGES" else "android.permission.READ_EXTERNAL_STORAGE"
         /** Minutes between folder photos. */
         val PHOTO_EVERY = linkedMapOf(
