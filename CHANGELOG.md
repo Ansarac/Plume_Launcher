@@ -1,6 +1,7 @@
 # Changelog
 
 Plume shows the section for its own version in **Plume settings → Updates** after an update.
+After an update, a card on the home screen shows the first 3 entries. Put the 3 most interesting changes first.
 The build stops if `versionName` has no section here.
 
 Write every entry in ASD-STE100 Simplified Technical English:
@@ -15,20 +16,36 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- When you move quickly along the app row, Plume shows an app's name only when you reach that app.
+- In **All apps**, the tile in the first or last column is no longer cut off when you select it.
+- The dark tiles and the wallpaper fade are smooth. Their gradients no longer show as bands.
 - Continue Watching shows what you are watching before the next-episode suggestions. Some apps give the time in seconds. Plume now reads it correctly.
-- Every HDMI input can be a tile. A device that names itself, like a PS5, Xbox or Nintendo Switch, gets a tile with its logo. Other HDMI devices get a tile while they send a picture. Every HDMI input is in **All apps**. Hold OK on one to pin it to the row.
-- You can set the weather location by hand. Select **Plume settings → Weather location**.
-- **Plume settings → Home button** is now a switch. Use it to turn the Home button on or off.
-- All the text in Plume is now in one file. This makes translation easier.
-- A guided setup makes the Home button open Plume. To do it again, select **Plume settings → Set up Home button**.
-- A red dot on the Plume settings icon tells you about a new update or new update notes.
-- **Plume settings → Updates** shows what is new in this version.
-- You can put a short app row on the left, in the centre or on the right. Select **Plume settings → App row → App row position**.
-- **Plume settings** has sections. Each section shows its current settings.
-- Push Left or Right to change a value, for example **Theme** or **Weather units**.
-- At the top of a list, push Up to go to the bottom.
-- Plume settings opens at the section that you used last.
-- Dark mode stays dark. The selected item in settings, menus and popups is easier to see.
+
+## 1.4
+
+### Smaller
+- **12% smaller.** Plume is now 365 KB, down from 413 KB.
+
+### New
+- **Consoles on your home screen.** Your PS5, Xbox or Nintendo Switch gets a tile with its logo. Select it to switch to that input.
+- **More Continue Watching.** The limit of 3 shows for each app is gone. Each app keeps 3 places at the front.
+- **Every HDMI input as a tile.** Other HDMI devices get a tile while they are on. All of them are in **All apps**.
+- **What's new card.** After an update, a card shows the highlights. Select **See all changes** to read everything.
+
+### Design
+- **New dark mode.** True black, with lit edges on the selected item.
+- **Plume settings, organised.** Settings are in sections. Each section shows its current settings.
+- **App row position.** Put a short app row on the left, in the centre or on the right. Select **Plume settings → App row → App row position**.
+
+### Easier to use
+- **Faster settings.** Push Left or Right to change a value. Settings opens where you left it. At the top of a list, push Up to go to the bottom.
+- **Weather location.** Set it by hand in **Plume settings → Weather → Weather location**.
+- **Home button setup.** A guided setup makes the Home button open Plume. Select **Plume settings → Home button → Set up Home button**. **Home button** is now an on/off switch.
+- **Update dot.** A red dot on the Plume settings icon tells you about an update. **Plume settings → Updates** shows what is new.
+
+### Fixes
+- After the TV starts, the first app is selected, not the network icon.
+- The hold OK menu is only as wide as its items.
 
 ## 1.3
 
