@@ -184,7 +184,7 @@ The APK is written to `app/build/outputs/apk/release/`. Without a `keystore.prop
 
 ## Contributing
 
-Bug reports, translations and pull requests are welcome. Plume stays small on purpose, so please read [CONTRIBUTING.md](CONTRIBUTING.md) first: it lists what's in and out of scope and how to send a change. Open an issue before starting on a feature.
+Bug reports, design ideas, translations and pull requests are welcome. Plume stays small on purpose, so please read [CONTRIBUTING.md](CONTRIBUTING.md) first: it lists what's in and out of scope and how to send a change. Open an issue before starting on a feature.
 
 ## Credits
 
