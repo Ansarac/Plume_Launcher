@@ -27,6 +27,10 @@ internal object Bing {
     /** The wallpaper choice, next to "res:…", "file:…" and "folder:…". */
     const val CHOICE = "bing"
 
+    /** 1080p like every other wallpaper: a bigger picture would cost memory and show no more. */
+    private const val WIDTH = 1920
+    private const val HEIGHT = 1080
+
     /** Called on the main thread when a new picture is on disk. The home screen sets it while it is on screen. */
     @Volatile
     var onChanged: (() -> Unit)? = null
@@ -43,18 +47,13 @@ internal object Bing {
 
     private fun used(prefs: SharedPreferences) = prefs.getString("wp_light", null) == CHOICE || prefs.getString("wp_dark", null) == CHOICE
 
-    /** The biggest size that fits the screen: 1080p, 1440p or 4K. At 4K the picture is about 950 KB. */
-    private fun size(widthPx: Int) = when {
-        widthPx >= 3000 -> 3840 to 2160
-        widthPx >= 2200 -> 2560 to 1440
-        else -> 1920 to 1080
-    }
-
     /**
-     * Looks up the picture if a wallpaper uses it and it was not looked up today: a minute apart while there is no
-     * picture yet, an hour apart after a failure. [force] looks it up now (the picture was just chosen).
+     * Looks up the picture if a wallpaper uses it and the picture has not changed today: a minute apart while there is
+     * no picture yet, an hour apart otherwise. Bing changes the picture at a set time for each country, not at local
+     * midnight, so a lookup that finds yesterday's picture does not end the day. [force] looks it up now (the picture
+     * was just chosen).
      */
-    fun refresh(c: Context, prefs: SharedPreferences, widthPx: Int, force: Boolean = false) {
+    fun refresh(c: Context, prefs: SharedPreferences, force: Boolean = false) {
         if (!used(prefs)) return
         val today = LocalDate.now().toEpochDay()
         val now = System.currentTimeMillis()
@@ -64,12 +63,14 @@ internal object Bing {
         if (!inFlight.compareAndSet(false, true)) return
         worker.execute {
             try {
-                val token = download(c, widthPx, prefs.getString("bing_hash", null))
+                val token = download(c, prefs.getString("bing_hash", null))
                 synchronized(lock) {
                     if (!used(prefs)) file(c).delete() // another wallpaper was chosen meanwhile: keep nothing
                     else {
-                        prefs.edit().putLong("bing_day", today).apply { if (token != null) putString("bing_hash", token) }.apply()
-                        if (token != null) main.post { onChanged?.invoke() }
+                        if (token != null) { // only a new picture ends the day
+                            prefs.edit().putLong("bing_day", today).putString("bing_hash", token).apply()
+                            main.post { onChanged?.invoke() }
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -89,19 +90,20 @@ internal object Bing {
     }
 
     /** Returns the new picture's token, or null when it is the one on disk. Throws when the network or Bing fails. */
-    private fun download(c: Context, widthPx: Int, have: String?): String? {
-        val (w, h) = size(widthPx)
+    private fun download(c: Context, have: String?): String? {
         val l = Locale.getDefault()
         val market = if (l.country.isEmpty()) "en-US" else "${l.language}-${l.country}"
         // HPImageArchive.aspx is not documented by Microsoft. It can change or stop without notice. If the picture
         // stops coming, look here first: Plume then keeps the last picture and shows no error.
-        val image = JSONObject(connect("https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&uhd=1&uhdwidth=$w&uhdheight=$h&mkt=$market")
+        val image = JSONObject(connect("https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&uhd=1&uhdwidth=$WIDTH&uhdheight=$HEIGHT&mkt=$market")
             .inputStream.use { it.readBytes().decodeToString() }).getJSONArray("images").getJSONObject(0)
-        val token = image.getString("hsh") + w // the size is part of it, so a bigger screen fetches again
+        val path = image.getString("url")
+        if (!path.startsWith("/")) throw IOException("unexpected picture address") // it is added to the bing.com host
+        val token = image.getString("hsh")
         if (token == have && file(c).exists()) return null
         val part = File(c.filesDir, "bing.part")
         try {
-            val conn = connect("https://www.bing.com" + image.getString("url"))
+            val conn = connect("https://www.bing.com$path")
             val copied = conn.inputStream.use { input -> part.outputStream().use { input.copyTo(it) } }
             // A body cut short is not a picture, even if its header decodes.
             if (conn.contentEncoding == null && conn.contentLengthLong.let { it >= 0 && it != copied }) throw IOException("cut short")
@@ -113,9 +115,6 @@ internal object Bing {
         }
         return token
     }
-
-    /** The picture's size for [fitWallpaper], so the home screen decodes it at the size it was fetched at. */
-    fun wallpaperSize(widthPx: Int) = size(widthPx)
 
     private fun connect(url: String) = (URL(url).openConnection() as HttpURLConnection).apply {
         connectTimeout = 8000

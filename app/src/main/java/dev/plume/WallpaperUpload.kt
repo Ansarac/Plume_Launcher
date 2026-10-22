@@ -144,11 +144,10 @@ internal class UploadServer(val code: String, private val temp: File, private va
 
 /**
  * Turns a photo into a wallpaper: upright (phones often store photos sideways with an orientation tag),
- * cropped to 16:9 around the centre, [wallW]×[wallH] (1920×1080 unless a 4K screen asks for more), mutable.
- * [open] is called once per pass over the image.
+ * cropped to 16:9 around the centre, 1920×1080, mutable. [open] is called once per pass over the image.
  * Returns null if it isn't an image Android can decode.
  */
-internal fun fitWallpaper(wallW: Int = WALL_W, wallH: Int = WALL_H, open: () -> InputStream): Bitmap? {
+internal fun fitWallpaper(open: () -> InputStream): Bitmap? {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     open().use { BitmapFactory.decodeStream(it, null, bounds) }
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
@@ -166,18 +165,17 @@ internal fun fitWallpaper(wallW: Int = WALL_W, wallH: Int = WALL_H, open: () -> 
     // Decode at the smallest size whose 16:9 crop still covers the screen: a 12 MP photo in full is ~48 MB.
     val cropW = minOf(w, h * 16 / 9)
     var sample = 1
-    while (cropW / (sample * 2) >= wallW) sample *= 2
-    val decoded = open().use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample; inMutable = true }) } ?: return null
+    while (cropW / (sample * 2) >= WALL_W) sample *= 2
+    val decoded = open().use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) } ?: return null
     val upright = if (rotation == 0) decoded else
         Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
             .also { decoded.recycle() }
-    if (upright.width == wallW && upright.height == wallH && upright.isMutable) return upright // already the right size: no second bitmap
     val cw = minOf(upright.width, upright.height * 16 / 9)
     val ch = cw * 9 / 16
     val left = (upright.width - cw) / 2
     val top = (upright.height - ch) / 2
-    val out = Bitmap.createBitmap(wallW, wallH, Bitmap.Config.ARGB_8888)
-    Canvas(out).drawBitmap(upright, Rect(left, top, left + cw, top + ch), Rect(0, 0, wallW, wallH), Paint(Paint.FILTER_BITMAP_FLAG))
+    val out = Bitmap.createBitmap(WALL_W, WALL_H, Bitmap.Config.ARGB_8888)
+    Canvas(out).drawBitmap(upright, Rect(left, top, left + cw, top + ch), Rect(0, 0, WALL_W, WALL_H), Paint(Paint.FILTER_BITMAP_FLAG))
     upright.recycle()
     return out
 }

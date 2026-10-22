@@ -16,7 +16,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
-- You can use the Bing picture of the day as the wallpaper. Select **Plume settings → Appearance → Light mode wallpaper** or **Dark mode wallpaper**, then select **Bing picture of the day**. Plume asks Bing once a day and keeps one picture. In dark mode, Plume makes the picture darker.
+- You can use the Bing picture of the day as the wallpaper. Select **Plume settings → Appearance → Light mode wallpaper** or **Dark mode wallpaper**, then select **Bing picture of the day**. Plume asks Bing when the home screen opens, and stops for the day when the picture has changed. Plume keeps one picture. In dark mode, Plume makes the picture darker.
 
 ## 1.4
 
