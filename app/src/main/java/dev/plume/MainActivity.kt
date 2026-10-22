@@ -166,6 +166,13 @@ internal fun isAudioDevice(name: String) = name.lowercase().let { n -> AUDIO_WOR
 internal fun inRow(pkg: String, offline: Boolean, hidden: Set<String>, pinned: Set<String>) =
     pkg !in hidden && (!offline || pkg in pinned)
 
+/** The icon styles, in the order the setting steps through them. */
+internal val ICON_STYLE_KEYS = listOf("mono", "colour", "banner")
+
+/** The style a stored choice means. Before styles, Colour was an on/off setting ([oldColour]): it decides until a style is picked. */
+internal fun iconStyleOf(stored: String?, oldColour: Boolean) =
+    stored?.takeIf { it in ICON_STYLE_KEYS } ?: if (oldColour) "colour" else "mono"
+
 /** Allowed to start an activity from the background because the Home button service is bound. */
 class Updated : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
@@ -1020,9 +1027,13 @@ class MainActivity : Activity() {
         val cwOff = prefs.getStringSet("cw_off", emptySet())!!.count { pkg -> apps.any { it.pkg == pkg } } // uninstalled ones don't count
         val rowHidden = rowHiddenSet().count { pkg -> apps.any { it.pkg == pkg } }
         val names = rowNames()
-        val colour = colourIcons()
         // Rows with more than two values also step back with Left; two-value rows flip either way.
         val steps = mutableMapOf<Int, (Int) -> Unit>(
+            R.string.icon_style to { d ->
+                prefs.edit().putString("icon_style", ICON_STYLES.keys.toList().step(iconStyle(), d)).apply()
+                renderApps()
+                renderSettings(R.string.icon_style)
+            },
             R.string.theme to { d ->
                 prefs.edit().putString("theme", listOf("light", "dark", "auto").step(theme, d)).putBoolean("reopen_settings", true).apply()
                 recreate() // colours are applied once per activity; reopen the panel after
@@ -1063,10 +1074,8 @@ class MainActivity : Activity() {
             R.string.app_names to Triple(getString(R.string.app_names), mapOf("focus" to getString(R.string.on_focus), "always" to getString(R.string.always), "never" to getString(R.string.never))[names]!!) {
                 steps[R.string.app_names]!!(1)
             },
-            R.string.icon_style to Triple(getString(R.string.icon_style), if (colour) getString(R.string.colour) else getString(R.string.monochrome)) {
-                prefs.edit().putBoolean("colour_icons", !colour).apply()
-                renderApps()
-                renderSettings(R.string.icon_style)
+            R.string.icon_style to Triple(getString(R.string.icon_style), getString(ICON_STYLES.getValue(iconStyle()))) {
+                steps[R.string.icon_style]!!(1)
             },
             R.string.restore_hidden to Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else getString(R.string.n_hidden, hidden)) {
                 prefs.edit().remove("hidden_watch").apply()
@@ -1114,7 +1123,7 @@ class MainActivity : Activity() {
                 renderSettings(R.string.lock_layout)
             },
         )
-        for (k in listOf(R.string.sort_apps, R.string.icon_style, R.string.weather_units)) steps[k] = { rows[k]!!.third() }
+        for (k in listOf(R.string.sort_apps, R.string.weather_units)) steps[k] = { rows[k]!!.third() }
         val on = { b: Boolean -> getString(if (b) R.string.on else R.string.off) }
         val sections = listOf(
             Triple(R.string.section_appearance, "${rows[R.string.theme]!!.second} · ${wallpaperName(currentWallpaper(dark))}",
@@ -1488,7 +1497,14 @@ class MainActivity : Activity() {
         val firstFill = appRow.childCount == 0 && currentFocus?.parent === wifi.parent
         val takeFocus = currentFocus == null || currentFocus?.parent === appRow || firstFill
         val gap = dp(GRID_GAP)
-        val width = (resources.displayMetrics.widthPixels - dp(96) - gap * (ROW_TILES - 1)) / ROW_TILES
+        val width = rowTileWidth()
+        val tileH = if (iconStyle() == "banner") width * 9 / 16 else dp(76) // 16:9 like a banner
+        // The row sits on the bottom of its space. A banner row is shorter, so lift it by half the difference: its
+        // centre stays where the card row's is, between the clock and Continue Watching.
+        findViewById<View>(R.id.appScroll).apply {
+            (layoutParams as LinearLayout.LayoutParams).bottomMargin = dp(-24) + (dp(76) - tileH) / 2
+            requestLayout()
+        }
         appRow.removeAllViews()
         val hidden = rowHiddenSet()
         val pinned = pinnedInputs()
@@ -1496,7 +1512,7 @@ class MainActivity : Activity() {
         if (tiles.isEmpty()) return showNames()
         tiles.forEachIndexed { i, t ->
             t.id = View.generateViewId()
-            appRow.addView(t, LinearLayout.LayoutParams(width, dp(76)).apply { if (i > 0) marginStart = gap })
+            appRow.addView(t, LinearLayout.LayoutParams(width, tileH).apply { if (i > 0) marginStart = gap })
             val own = t.onFocusChangeListener
             t.setOnFocusChangeListener { v, focused ->
                 own.onFocusChange(v, focused)
@@ -1517,10 +1533,51 @@ class MainActivity : Activity() {
     private fun rowNames() = prefs.getString("names", "focus")!!
 
     /** Each app's own shipped icon instead of the mono mark, in the row and All apps. */
-    private fun colourIcons() = prefs.getBoolean("colour_icons", false)
+    /** "mono", "colour" or "banner". The old on/off "colour_icons" decides until a style has been picked. */
+    private fun iconStyle() = iconStyleOf(prefs.getString("icon_style", null), prefs.getBoolean("colour_icons", false))
+
+    private fun colourIcons() = iconStyle() != "mono"
+
+    /** Width of a home row tile: eight across the screen. */
+    private fun rowTileWidth() = (resources.displayMetrics.widthPixels - dp(96) - dp(GRID_GAP) * (ROW_TILES - 1)) / ROW_TILES
+
+    /**
+     * Apple TV style: the app's own banner fills the tile, rounded. Only when the banner is at least as wide as the
+     * tile, or it would be upscaled and soft (4K); null then, and the tile shows the app's mark as usual.
+     */
+    private fun bannerTile(a: App): View? {
+        if (a.pkg.startsWith(HDMI)) return null
+        val banner = try {
+            packageManager.getActivityBanner(a.launch)
+        } catch (e: Exception) {
+            null
+        } ?: return null
+        val w = rowTileWidth()
+        if (banner.intrinsicWidth in 1 until w) return null
+        // Drawn once, centre-cropped, at the tile's exact size: a row of banners then costs ~80 KB each, not the
+        // banner's own size, and the full-size banner isn't kept.
+        val h = w * 9 / 16
+        val bw = banner.intrinsicWidth.takeIf { it > 0 } ?: w
+        val bh = banner.intrinsicHeight.takeIf { it > 0 } ?: h
+        val scale = maxOf(w.toFloat() / bw, h.toFloat() / bh)
+        val dw = (bw * scale).toInt()
+        val dh = (bh * scale).toInt()
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        (banner as? BitmapDrawable)?.isFilterBitmap = true
+        banner.setBounds((w - dw) / 2, (h - dh) / 2, (w - dw) / 2 + dw, (h - dh) / 2 + dh)
+        banner.draw(Canvas(bmp))
+        val col = FrameLayout(this).apply {
+            addView(ImageView(context).apply { setImageBitmap(bmp); scaleType = ImageView.ScaleType.FIT_XY }, MATCH_PARENT, MATCH_PARENT)
+            tag = a.pkg
+            setOnClickListener { launch(a) }
+        }
+        style(col, dp(8), card = false)
+        return col
+    }
 
     /** The home row shows marks only by default (see rowNames); the All apps grid always labels them. */
     private fun appTile(a: App, labeled: Boolean = true): View {
+        if (!labeled && iconStyle() == "banner") bannerTile(a)?.let { it.contentDescription = a.label; return it }
         val logo = LOGOS[a.pkg]
         val custom = customIcon(a.pkg)
         val name = a.label.takeIf { labeled }
@@ -1611,7 +1668,8 @@ class MainActivity : Activity() {
                 img.scaleType = ImageView.ScaleType.CENTER_CROP
                 img.setPadding(wordmarkInset, 0, wordmarkInset, 0)
             } else {
-                img.setPadding(dp(16), dp(20), dp(16), dp(20))
+                val v = if (iconStyle() == "banner") dp(8) else dp(20) // banner rows are shorter
+                img.setPadding(dp(16), v, dp(16), v)
             }
             col.addView(img, LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         } else {
@@ -2844,6 +2902,8 @@ class MainActivity : Activity() {
         const val TV_SETTINGS = "com.android.tv.settings"
         const val HDMI = "hdmi:" // App.pkg prefix for HDMI device tiles; the rest is the TV input id
         const val ROW_TILES = 8
+        /** Icon style setting -> its name. */
+        val ICON_STYLES = linkedMapOf(ICON_STYLE_KEYS[0] to R.string.monochrome, ICON_STYLE_KEYS[1] to R.string.colour, ICON_STYLE_KEYS[2] to R.string.banner)
         const val GRID_GAP = 16 // dp; shared by the apps row and the cards so their columns line up
         /** Shown names for the wallpaper keys saved in prefs (the keys stay English). */
         val WALLPAPER_NAMES = mapOf(

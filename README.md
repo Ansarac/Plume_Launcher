@@ -24,7 +24,7 @@ Plume replaces the cluttered stock home screen with the two things you actually 
 - **Tiny and fast.** A 0.4 MB APK with no third-party libraries. It uses about 50–70 MB of RAM and has no extra background services.
 - **Home button support on Google TV.** The Home button opens Plume directly, even on devices where the system launcher can't be replaced. Holding Home still opens the Google TV dashboard.
 - **Continue Watching.** Resume shows and films from Android TV's Watch Next list and from apps that publish their own "Continue Watching" channel, such as Stremio.
-- **Clean apps row.** Monochrome logos (or the same logos in brand colour) in a single row, with names on focus, always or never. Rearrange it by holding OK, sort by most used, or hide apps you don't use (they stay in All apps). An optional PIN locks the layout so small hands can't rearrange it.
+- **Clean apps row.** Monochrome logos (or the same logos in brand colour, or each app's own banner) in a single row, with names on focus, always or never. Rearrange it by holding OK, sort by most used, or hide apps you don't use (they stay in All apps). An optional PIN locks the layout so small hands can't rearrange it.
 - **HDMI inputs as apps.** A console or set-top box that names itself over HDMI-CEC (for example "PlayStation 5") gets its own tile, which switches the TV to that input. Other HDMI devices get a tile while they send a picture, and every HDMI input is in All apps, where you can pin it to the row.
 - **Light, dark or automatic theme**, each with its own wallpaper. Add your own photos from your phone by scanning a QR code, or show a folder of photos from the TV or a USB drive that changes on a timer.
 - **Optional Gallery screensaver.** Public-domain landscape paintings in 16:9, downloaded only if you choose it, or a folder of your own photos.
@@ -111,7 +111,7 @@ Android 13 and newer grey out the Accessibility switch for apps installed outsid
 | Pin an app from *All apps* to the front | Open **All apps**, hold **OK** on the app (this also unhides it) |
 | Hide apps from the row | **Settings → Apps in row** |
 | Show app names always, on focus or never | **Settings → App names** |
-| Switch between monochrome and colour icons | **Settings → Icon style** |
+| Switch between monochrome icons, colour icons and app banners | **Settings → Icon style** |
 | Update Plume | **Settings → Updates** |
 | Lock the layout with a PIN | **Settings → Lock layout** |
 | Open the Google TV dashboard | Hold the **Home** button |
