@@ -16,6 +16,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- A long app name no longer runs past its tile. It scrolls slowly while the app is selected.
 - **Android 8:** Plume opens on Android 8.0 and 8.1. Before, it closed immediately after it opened.
 - When you move quickly along the app row, Plume shows an app's name only when you reach that app.
 - In **All apps**, the tile in the first or last column is no longer cut off when you select it.

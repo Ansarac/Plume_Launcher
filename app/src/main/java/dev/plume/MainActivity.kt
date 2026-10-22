@@ -1552,7 +1552,7 @@ class MainActivity : Activity() {
         if (!always) return
         for (i in 0 until appRow.childCount) {
             val t = appRow.getChildAt(i)
-            row.addView(label(t.contentDescription.toString(), 13f).apply {
+            row.addView(fittingLabel(t.contentDescription.toString(), 13f).apply {
                 gravity = Gravity.CENTER
                 alpha = if (dark) 0.85f else 1f
             }, LinearLayout.LayoutParams(t.layoutParams as LinearLayout.LayoutParams).apply { height = MATCH_PARENT })
@@ -1561,19 +1561,31 @@ class MainActivity : Activity() {
 
     /** Slides the shared name label under the focused row tile; fades it out once focus leaves the row. */
     private fun showRowLabel(v: View, focused: Boolean) {
-        val label = findViewById<TextView>(R.id.rowLabel)
+        val label = findViewById<FittingLabel>(R.id.rowLabel)
+        if (rowNames() == "always") { // the names under every tile: only the selected tile's name scrolls, if it is too wide
+            val names = findViewById<LinearLayout>(R.id.nameRow)
+            val at = appRow.indexOfChild(v)
+            for (i in 0 until names.childCount) (names.getChildAt(i) as? FittingLabel)?.setActive(focused && !editing && i == at)
+        }
         if (focused && !editing && rowNames() == "focus") {
             // Name and place change together, or moving quickly shows the next name under the previous tile for a frame.
             // Posted only on first render, when focus lands before layout and every width is still 0. A post that runs
             // after focus moved on is skipped, or it would show this old name while a newer tile is selected.
             val place = {
                 label.text = v.contentDescription
+                label.box = v.width // the name stays inside its tile: when it is wider it scrolls
                 label.translationX = v.left + v.width / 2f - label.width / 2f
+                label.setActive(true)
             }
             if (v.width > 0 && label.width > 0) place() else v.post { if (v.isFocused) place() }
             label.animate().alpha(if (dark) 0.85f else 1f).setDuration(160).start()
         } else {
-            ui.post { if (currentFocus?.parent !== appRow || editing) label.animate().alpha(0f).setDuration(120).start() }
+            ui.post {
+                if (currentFocus?.parent !== appRow || editing) {
+                    label.animate().alpha(0f).setDuration(120).start()
+                    label.setActive(false)
+                }
+            }
         }
     }
 
@@ -1589,7 +1601,7 @@ class MainActivity : Activity() {
             if (mono) setColorFilter(tint ?: fg)
         }
         val text = label?.let {
-            label(it, 13f).apply {
+            fittingLabel(it, 13f).apply {
                 gravity = Gravity.CENTER
                 setPadding(dp(6), dp(7), dp(6), 0)
             }
@@ -1600,6 +1612,7 @@ class MainActivity : Activity() {
         img.alpha = restLogo
         text?.alpha = restText
         style(col, dp(8), card = true) { focused ->
+            text?.setActive(focused) // a name too wide for the tile scrolls while it is selected
             if (!dark) return@style
             img.animate().alpha(if (focused) 1f else restLogo).setDuration(160).start()
             text?.animate()?.alpha(if (focused) 1f else restText)?.setDuration(160)?.start()
@@ -2785,6 +2798,15 @@ class MainActivity : Activity() {
 
     /** Supporting text: the secondary grey in dark mode, [lightAlpha] of the main colour in light mode. */
     private fun TextView.secondary(lightAlpha: Float) = if (dark) setTextColor(DARK_TEXT_2) else alpha = lightAlpha
+
+    /** A name that stays inside its box: it scrolls slowly while its tile is selected if it is too wide (see FittingLabel). */
+    private fun fittingLabel(text: String, size: Float) = FittingLabel(this).apply {
+        this.text = text
+        textSize = size
+        setTextColor(fg)
+        maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
+    }
 
     private fun label(text: String, size: Float) = TextView(this).apply {
         this.text = text
