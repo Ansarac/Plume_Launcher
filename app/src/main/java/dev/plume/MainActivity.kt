@@ -1533,9 +1533,14 @@ class MainActivity : Activity() {
     private fun showRowLabel(v: View, focused: Boolean) {
         val label = findViewById<TextView>(R.id.rowLabel)
         if (focused && !editing && rowNames() == "focus") {
-            label.text = v.contentDescription
-            // Posted: on first render focus lands before layout, when every width is still 0.
-            v.post { label.translationX = v.left + v.width / 2f - label.width / 2f }
+            // Name and place change together, or moving quickly shows the next name under the previous tile for a frame.
+            // Posted only on first render, when focus lands before layout and every width is still 0. A post that runs
+            // after focus moved on is skipped, or it would show this old name while a newer tile is selected.
+            val place = {
+                label.text = v.contentDescription
+                label.translationX = v.left + v.width / 2f - label.width / 2f
+            }
+            if (v.width > 0 && label.width > 0) place() else v.post { if (v.isFocused) place() }
             label.animate().alpha(if (dark) 0.85f else 1f).setDuration(160).start()
         } else {
             ui.post { if (currentFocus?.parent !== appRow || editing) label.animate().alpha(0f).setDuration(120).start() }

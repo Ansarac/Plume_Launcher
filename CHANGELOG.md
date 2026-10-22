@@ -16,6 +16,8 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- When you move quickly along the app row, Plume shows an app's name only when you reach that app.
+
 ## 1.4
 
 ### Smaller
