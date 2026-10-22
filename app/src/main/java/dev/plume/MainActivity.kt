@@ -730,8 +730,6 @@ class MainActivity : Activity() {
                 decodeWallpaper(choice)
             } catch (e: Exception) {
                 null
-            } catch (e: OutOfMemoryError) { // a picture on a TV short of memory: show the default instead of crashing
-                null
             } ?: decodeWallpaper(fallback)
             ui.post {
                 val old = view.drawable
