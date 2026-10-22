@@ -18,6 +18,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 - When you move quickly along the app row, Plume shows an app's name only when you reach that app.
 - In **All apps**, the tile in the first or last column is no longer cut off when you select it.
+- The dark tiles and the wallpaper fade are smooth. Their gradients no longer show as bands.
 
 ## 1.4
 
