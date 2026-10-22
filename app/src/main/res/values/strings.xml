@@ -182,4 +182,5 @@
     <string name="section_weather">Weather</string>
     <string name="section_screensaver">Screensaver</string>
     <string name="section_home">Home button</string>
+    <string name="bing_daily">Bing picture of the day</string>
 </resources>

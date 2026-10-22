@@ -28,4 +28,26 @@ class ContinueWatchingTest {
         val items = (1..4).map { 100L - it to "stremio/$it" } + (90L to "netflix/1")
         assertEquals(listOf("stremio/1", "stremio/2", "stremio/3", "netflix/1", "stremio/4"), newestPerApp(items, 3) { it.substringBefore('/') })
     }
+
+    @Test fun whatYouStartedComesBeforeSuggestionsWhateverTheUnit() {
+        // Wholphin dates what is playing in seconds and its "next episode" suggestions in milliseconds. Sorted on the
+        // raw numbers the suggestions win, though they are older (11:52 against 13:14).
+        val rows = listOf(
+            watchSortKey(1, 1_792_576_332_167) to "wholphin/suggestion-a",
+            watchSortKey(1, 1_792_576_332_167) to "wholphin/suggestion-b",
+            watchSortKey(0, 1_792_581_271) to "wholphin/ncis",
+            watchSortKey(0, 1_791_758_381) to "wholphin/descendants",
+            watchSortKey(0, 1_791_242_669) to "wholphin/coquin",
+            watchSortKey(0, 1_791_237_906_401) to "moonfin/clochette", // another app, in milliseconds
+        )
+        val shown = newestPerApp(rows, 3) { it.substringBefore('/') }
+        // Wholphin's fourth and fifth rows follow the other apps' front places.
+        assertEquals(listOf("wholphin/ncis", "wholphin/descendants", "wholphin/coquin", "moonfin/clochette",
+            "wholphin/suggestion-a", "wholphin/suggestion-b"), shown)
+    }
+
+    @Test fun suggestionsStillShowWhenAnAppHasNothingStarted() {
+        val rows = listOf(watchSortKey(1, 1_792_576_332_167) to "netflix/next", watchSortKey(0, 1_792_581_271) to "wholphin/ncis")
+        assertEquals(listOf("wholphin/ncis", "netflix/next"), newestPerApp(rows, 3) { it.substringBefore('/') })
+    }
 }
