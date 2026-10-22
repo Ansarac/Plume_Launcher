@@ -1,5 +1,5 @@
 <resources>
-    <string name="override_desc">Google TV ana ekranı her açıldığında Plume\'u başlatır, böylece kumandanın Home tuşu buraya gelir.</string>
+    <string name="override_desc">Google TV ana ekranı her açıldığında Plume\'u başlatır, böylece kumandanın Ana Ekran tuşu buraya gelir.</string>
     <string name="delete_photo">\"%1$s\" silinsin mi?</string>
     <string name="photo_added">\"%1$s\" eklendi. Başka bir fotoğraf gönderin veya Bitti\'ye basın.</string>
     <string name="n_of_m">%1$d / %2$d</string>
@@ -73,7 +73,7 @@
     <string name="test_screensaver">Ekran koruyucuyu test et</string>
     <string name="screensaver_timing">Ekran koruyucu süresi</string>
     <string name="home_button">Ana Ekran tuşu</string>
-    <string name="default_launcher">Varsayılan launcher</string>
+    <string name="default_launcher">Varsayılan başlatıcı</string>
     <string name="plume_press_change">Plume: değiştirmek için basın</string>
     <string name="press_to_set">Ayarlamak için basın</string>
     <string name="updates">Güncellemeler</string>
@@ -88,7 +88,7 @@
     <string name="pins_mismatch">PIN kodları eşleşmedi. Tekrar bir PIN seçin.</string>
     <string name="layout_locked">Düzen kilitlendi. Plume ayarları ve ana ekran değişiklikleri artık PIN gerektiriyor.</string>
     <string name="pin_hint">▲ ▼ değiştir  ·  ◀ ▶ taşı  ·  OK onayla. Rakam tuşları da çalışır.</string>
-    <string name="pin_forgot">Unuttunuz mu? Android Ayarlar → Uygulamalar → Plume → Verileri temizle seçeneği kilidi ve ayarlarınızı sıfırlar.</string>
+    <string name="pin_forgot">Unuttunuz mu? Android Ayarlar → Uygulamalar → Plume → Verileri temizle seçeneği kilidi, düzeninizi ve ayarlarınızı sıfırlar.</string>
     <string name="tip_move">İpucu: Satırı düzenlemek için bir uygulama üzerinde OK tuşuna basılı tutun</string>
     <string name="open">Aç</string>
     <string name="move">Taşı</string>
@@ -148,16 +148,16 @@
     <string name="setup_step">%1$d / 3. Adım</string>
     <string name="setup_role_title">Plume\'u ana ekranınız yapın</string>
     <string name="setup_role_body">Android hangi uygulamanın ana ekran olacağını soracak. Plume\'u seçin.</string>
-    <string name="setup_test_title">Kumandanızdaki Home tuşuna basın</string>
-    <string name="setup_test_body">Plume, Home tuşunun sizi buraya getirip getirmediğini kontrol eder. Başka bir ana ekran açılırsa, uygulamalarınızdan Plume\'u tekrar açın; kurulum bir sonraki yöntemi deneyecektir.</string>
+    <string name="setup_test_title">Kumandanızdaki Ana Ekran tuşuna basın</string>
+    <string name="setup_test_body">Plume, Ana Ekran tuşunun sizi buraya getirip getirmediğini kontrol eder. Başka bir ana ekran açılırsa, uygulamalarınızdan Plume\'u tekrar açın; kurulum bir sonraki yöntemi deneyecektir.</string>
     <string name="setup_service_title">Plume Ana Ekran tuşu servisini açın</string>
     <string name="setup_service_body">Erişilebilirlik ayarları açılacak. \"Plume: Ana Ekran tuşu\" seçeneğini bulun, açın ve buraya dönmek için Geri tuşuna basın.</string>
     <string name="setup_adb_title">ADB ile bir kez kilidi açın</string>
-    <string name="setup_adb_body">Bu TV, Play Store dışından yüklenen uygulamalar için Home tuşunu engelliyor. Geliştirici seçeneklerinden Ağ üzerinden hata ayıklamayı açın ve bir bilgisayardan bu komutları çalıştırın.</string>
+    <string name="setup_adb_body">Bu TV, Play Store dışından yüklenen uygulamalar için Ana Ekran tuşunu engeller. Geliştirici seçeneklerinden ağ üzerinden hata ayıklamayı açın, ardından bunları bir bilgisayardan veya telefondaki bir ADB uygulamasından çalıştırın. Gerisini Plume halleder.</string>
     <string name="setup_scan_help">Adım adım yardım</string>
     <string name="setup_done_title">Ana Ekran ayarlandı</string>
-    <string name="setup_done_body">Kumandanızdaki Home tuşu artık doğrudan Plume\'u açıyor.</string>
-    <string name="setup_done_body_service">Kumandanızdaki Home tuşu artık Plume\'u açıyor. Google TV paneli için Home tuşuna basılı tutun.</string>
+    <string name="setup_done_body">Kumandanızdaki Ana Ekran tuşu artık doğrudan Plume\'u açıyor.</string>
+    <string name="setup_done_body_service">Kumandanızdaki Ana Ekran tuşu artık Plume\'u açıyor. Google TV paneli için Ana Ekran tuşuna basılı tutun.</string>
     <string name="setup_continue">Devam Et</string>
     <string name="setup_not_now">Şimdi Değil</string>
     <string name="setup_skip_check">Bu kontrolü atla</string>
@@ -171,9 +171,9 @@
     <string name="check_updates">Güncellemeleri denetle</string>
     <string name="install_update">%1$s sürümünü yükle</string>
     <string name="row_position">Uygulama satırı konumu</string>
-    <string name="align_left">Sola hizala</string>
-    <string name="align_centre">Ortala</string>
-    <string name="align_right">Sağa hizala</string>
+    <string name="align_left">Sol</string>
+    <string name="align_centre">Orta</string>
+    <string name="align_right">Sağ</string>
     <string name="section_appearance">Görünüm</string>
     <string name="section_app_row">Uygulama satırı</string>
     <string name="section_weather">Hava Durumu</string>
