@@ -2749,8 +2749,6 @@ class MainActivity : Activity() {
         v.background = if (dark && card) rimCard(radius, false) else bg
         if (!dark) v.foreground = sheen
         v.clipToOutline = true
-        v.outlineSpotShadowColor = Color.BLACK
-        v.outlineAmbientShadowColor = Color.BLACK
         v.elevation = if (card) dp(2).toFloat() else 0f
         v.isFocusable = true
         v.isClickable = true
