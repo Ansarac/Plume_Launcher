@@ -66,11 +66,9 @@ internal object Bing {
                 val token = download(c, prefs.getString("bing_hash", null))
                 synchronized(lock) {
                     if (!used(prefs)) file(c).delete() // another wallpaper was chosen meanwhile: keep nothing
-                    else {
-                        if (token != null) { // only a new picture ends the day
-                            prefs.edit().putLong("bing_day", today).putString("bing_hash", token).apply()
-                            main.post { onChanged?.invoke() }
-                        }
+                    else if (token != null) { // only a new picture ends the day
+                        prefs.edit().putLong("bing_day", today).putString("bing_hash", token).apply()
+                        main.post { onChanged?.invoke() }
                     }
                 }
             } catch (e: Exception) {
