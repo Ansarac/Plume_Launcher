@@ -20,6 +20,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - In **All apps**, the tile in the first or last column is no longer cut off when you select it.
 - The dark tiles and the wallpaper fade are smooth. Their gradients no longer show as bands.
 - Continue Watching shows what you are watching before the next-episode suggestions. Some apps give the time in seconds. Plume now reads it correctly.
+- If your wallpaper is too big for the memory of your TV, Plume shows the default wallpaper. Before, Plume closed.
 
 ## 1.4
 
