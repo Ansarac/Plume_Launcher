@@ -17,7 +17,7 @@ body:
     id: idea
     attributes:
       label: Your idea
-      description: How you picture it working. Screenshots from other launchers are welcome.
+      description: How you picture it working. Sketches, mockups or screenshots are welcome.
     validations:
       required: true
   - type: textarea
