@@ -743,11 +743,13 @@ class MainActivity : Activity() {
         val h = bmp.height.toFloat()
         val base = ground and 0x00FFFFFF
         if (wallpaperFade()) Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h, Paint().apply {
+            isDither = true
             shader = LinearGradient(0f, h * 0.28f, 0f, h * 0.5f, base, base or 0xE6000000.toInt(), Shader.TileMode.CLAMP)
         })
         // Photos rarely have the bundled ones' empty sky: a soft veil behind the clock and top-bar icons keeps them readable.
         // Strong over the clock and icons (top ~20%), gone by 30% so the photo still shows above the apps.
         Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h * 0.3f, Paint().apply {
+            isDither = true
             shader = LinearGradient(0f, 0f, 0f, h * 0.3f, intArrayOf(base or 0xC0000000.toInt(), base or 0xA0000000.toInt(), base),
                 floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
         })
@@ -1533,9 +1535,14 @@ class MainActivity : Activity() {
     private fun showRowLabel(v: View, focused: Boolean) {
         val label = findViewById<TextView>(R.id.rowLabel)
         if (focused && !editing && rowNames() == "focus") {
-            label.text = v.contentDescription
-            // Posted: on first render focus lands before layout, when every width is still 0.
-            v.post { label.translationX = v.left + v.width / 2f - label.width / 2f }
+            // Name and place change together, or moving quickly shows the next name under the previous tile for a frame.
+            // Posted only on first render, when focus lands before layout and every width is still 0. A post that runs
+            // after focus moved on is skipped, or it would show this old name while a newer tile is selected.
+            val place = {
+                label.text = v.contentDescription
+                label.translationX = v.left + v.width / 2f - label.width / 2f
+            }
+            if (v.width > 0 && label.width > 0) place() else v.post { if (v.isFocused) place() }
             label.animate().alpha(if (dark) 0.85f else 1f).setDuration(160).start()
         } else {
             ui.post { if (currentFocus?.parent !== appRow || editing) label.animate().alpha(0f).setDuration(120).start() }
@@ -2705,9 +2712,11 @@ class MainActivity : Activity() {
         val sheen = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x40FFFFFF, 0x00FFFFFF)).apply {
             cornerRadius = radius.toFloat()
             alpha = 0
+            setDither(true)
         }
         val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (card) cardRest else intArrayOf(0, 0)).apply {
             cornerRadius = radius.toFloat()
+            setDither(true)
         }
         v.background = if (dark && card) rimCard(radius, false) else bg
         if (!dark) v.foreground = sheen
@@ -2736,6 +2745,7 @@ class MainActivity : Activity() {
         val body = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (lit) DARK_CARD_LIT else DARK_CARD).apply {
             cornerRadius = radius.toFloat()
             setStroke(1, if (lit) RIM_SIDE_LIT else RIM_SIDE) // 1px, not 1dp: a hairline stays crisp
+            setDither(true) // near black the gradient has ~8 steps; dithered, they don't show as bands
         }
         return LayerDrawable(arrayOf(body, ColorDrawable(if (lit) RIM_TOP_LIT else RIM_TOP))).apply {
             setLayerGravity(1, Gravity.TOP or Gravity.FILL_HORIZONTAL)
