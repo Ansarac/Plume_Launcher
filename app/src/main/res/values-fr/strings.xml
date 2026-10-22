@@ -183,4 +183,5 @@
     <string name="section_weather">Météo</string>
     <string name="section_screensaver">Écran de veille</string>
     <string name="section_home">Bouton Accueil</string>
+    <string name="bing_daily">Image Bing du jour</string>
 </resources>
