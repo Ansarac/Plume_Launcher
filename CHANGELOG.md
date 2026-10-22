@@ -21,6 +21,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - In **All apps**, the tile in the first or last column is no longer cut off when you select it.
 - The dark tiles and the wallpaper fade are smooth. Their gradients no longer show as bands.
 - Continue Watching shows what you are watching before the next-episode suggestions. Some apps give the time in seconds. Plume now reads it correctly.
+- The tiles are see-through. The wallpaper shows through them. Menus and dialogs stay solid.
 - You can use the Bing picture of the day as the wallpaper. Select **Plume settings → Appearance → Light mode wallpaper** or **Dark mode wallpaper**, then select **Bing picture of the day**. Plume asks Bing when the home screen opens, and stops for the day when the picture has changed. Plume keeps one picture. In dark mode, Plume makes the picture darker.
 - If your wallpaper is too big for the memory of your TV, Plume shows the default wallpaper. Before, Plume closed.
 

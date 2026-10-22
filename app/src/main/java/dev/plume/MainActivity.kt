@@ -592,7 +592,7 @@ class MainActivity : Activity() {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(28), dp(24), dp(28), dp(20))
-            background = if (dark) rimCard(dp(16), false) else GradientDrawable().apply {
+            background = if (dark) rimCard(dp(16), false, solid = true) else GradientDrawable().apply {
                 cornerRadius = dp(16).toFloat()
                 setColor(0xFFF7F8FA.toInt())
             }
@@ -1852,7 +1852,7 @@ class MainActivity : Activity() {
         val list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(6), dp(6), dp(6))
-            background = if (dark) rimCard(dp(12), false) else GradientDrawable().apply {
+            background = if (dark) rimCard(dp(12), false, solid = true) else GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat()
                 setColor(0xFFF7F8FA.toInt())
             }
@@ -2767,10 +2767,12 @@ class MainActivity : Activity() {
 
     /**
      * A dark-mode card on true black: near-black glass with a hairline rim, brighter along the top edge as if
-     * lit from above. [lit] is the focused look: brighter glass and rim.
+     * lit from above. [lit] is the focused look: brighter glass and rim. [solid]: no see-through, for menus and
+     * dialogs, which sit over other things and have to stay readable (light mode's are solid too).
      */
-    private fun rimCard(radius: Int, lit: Boolean): Drawable {
-        val body = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (lit) DARK_CARD_LIT else DARK_CARD).apply {
+    private fun rimCard(radius: Int, lit: Boolean, solid: Boolean = false): Drawable {
+        val glass = (if (lit) DARK_CARD_LIT else DARK_CARD).let { c -> if (solid) IntArray(c.size) { c[it] or 0xFF000000.toInt() } else c }
+        val body = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, glass).apply {
             cornerRadius = radius.toFloat()
             setStroke(1, if (lit) RIM_SIDE_LIT else RIM_SIDE) // 1px, not 1dp: a hairline stays crisp
             setDither(true) // near black the gradient has ~8 steps; dithered, they don't show as bands
