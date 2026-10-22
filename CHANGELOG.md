@@ -24,6 +24,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - Continue Watching shows what you are watching before the next-episode suggestions. Some apps give the time in seconds. Plume now reads it correctly.
 - The tiles are see-through. The wallpaper shows through them. Menus and dialogs stay solid.
 - **Plume settings → App row → Icon style** has a new choice, **Banner**. Each app shows its own picture, as on Apple TV. An app with no banner gets its own colour behind a white mark. Monochrome stays the default.
+- **Plume settings → App row → Icon style** has a fourth choice, **Monochrome banner**. The pictures are grey until you select one. An app with no banner gets its own colour behind a white mark, as with **Banner**.
 - You can use the Bing picture of the day as the wallpaper. Select **Plume settings → Appearance → Light mode wallpaper** or **Dark mode wallpaper**, then select **Bing picture of the day**. Plume asks Bing when the home screen opens, and stops for the day when the picture has changed. Plume keeps one picture. In dark mode, Plume makes the picture darker.
 - If your wallpaper is too big for the memory of your TV, Plume shows the default wallpaper. Before, Plume closed.
 
