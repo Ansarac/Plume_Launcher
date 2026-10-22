@@ -7,7 +7,7 @@ Thanks for wanting to help. Plume is a small project with one maintainer, so thi
 Plume is a minimal home screen for Android TV and Google TV. Every change is weighed against these principles:
 
 - **Small and light.** A 0.4 MB APK, about 50–70 MB of RAM, no third-party libraries, no extra background services.
-- **Simple home screen.** One apps row and one Continue Watching row. Nothing else competes for attention.
+- **Simple home screen.** One calm screen with your apps and what you watch. Nothing competes for attention.
 - **Yours, not ours.** No ads, no sponsored or recommended content, no analytics, no account.
 - **Quiet on the network.** Plume only goes online for the things listed under [Privacy](README.md#privacy). Anything new that connects to the internet must be optional and off until the user turns it on.
 
@@ -20,7 +20,9 @@ These will be declined, however well they're built:
 - New third-party libraries or SDKs (AndroidX included)
 - Services, workers or alarms that run while Plume isn't on screen
 - Online metadata services that need an API key, such as TMDB
-- Extra home screen rows, widgets or sections beyond the apps row and the card row
+- Rows, widgets or sections that copy the scrolling layouts of other launchers
+
+More of your own content on the home screen, such as Up next or more of Continue Watching, is welcome as a design first. Open a feature request that shows how it keeps the screen calm. A clear description is enough; sketches and mockups help.
 
 Not sure if an idea fits? Open a feature request first and ask. That's much cheaper than finding out after the code is written.
 

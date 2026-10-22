@@ -112,10 +112,24 @@ internal fun folderPhotos(cr: ContentResolver, choice: String): List<Long> =
     cr.query(PHOTOS, arrayOf(MediaStore.Images.Media._ID), "${MediaStore.Images.Media.BUCKET_ID} = ?", arrayOf(choice.split(':')[1]), null)
         ?.use { c -> List(c.count) { c.moveToNext(); c.getLong(0) } } ?: emptyList()
 
-/** Newest first across apps (ties keep their order), at most [perApp] per app: one app's ten shows can't bury the rest. */
+/**
+ * Sort key of a Watch Next row: what you started comes before suggestions (types other than 0, "continue"), then
+ * newest first. Some apps write the time in seconds, not milliseconds (Wholphin does, for what is playing): a number
+ * that small is read as seconds, or it would sort a thousand times older than every other row.
+ */
+internal fun watchSortKey(type: Long, engaged: Long): Long {
+    val millis = if (engaged in 1 until 100_000_000_000L) engaged * 1000 else engaged
+    return (if (type == 0L) 1L shl 50 else 0L) + millis
+}
+
+/**
+ * Newest first across apps (ties keep their order), each app's [perApp] newest ahead of the rest: one app's ten
+ * shows can't bury the others. The rest follow, newest first, so an app on its own isn't held to [perApp].
+ */
 internal fun <T> newestPerApp(items: List<Pair<Long, T>>, perApp: Int, app: (T) -> String?): List<T> {
     val shown = HashMap<String?, Int>()
-    return items.sortedByDescending { it.first }.map { it.second }.filter { shown.merge(app(it), 1, Int::plus)!! <= perApp }
+    val (front, rest) = items.sortedByDescending { it.first }.map { it.second }.partition { shown.merge(app(it), 1, Int::plus)!! <= perApp }
+    return front + rest
 }
 
 /** Layout lock PIN, stored as "salt:sha256". Keeps it out of plain sight in a prefs backup; not real security. */
@@ -259,6 +273,8 @@ class MainActivity : Activity() {
             // Fresh install: walk through making Home land on Plume, the one step that has to happen by hand.
             prefs.edit().putBoolean("setup_shown", true).apply()
             ui.post { startHomeSetup() }
+        } else if (notesUnseen()) {
+            ui.post { whatsNewCard() } // after an update; the self-updater reopens Plume, so it's seen right away
         }
 
         registerReceiver(packageReceiver, IntentFilter().apply {
@@ -536,12 +552,39 @@ class MainActivity : Activity() {
             getString(R.string.setup_close) to { setupDialog?.dismiss() })
     }
 
+    /**
+     * Once after an update: the first three CHANGELOG.md lines of this version, so put the best ones first.
+     * Closing it counts as reading the notes, which clears the dot on the Plume settings icon.
+     */
+    private fun whatsNewCard() {
+        prefs.edit().putString("seen_notes", myVersion()).apply()
+        updateBadge()
+        val notes = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            getString(R.string.whats_new).split('\n').take(3).forEach {
+                addView(label("", 15f).apply {
+                    text = SpannableString(it).apply { setSpan(BulletSpan(dp(10), fg), 0, it.length, 0) }
+                    maxLines = Int.MAX_VALUE
+                    ellipsize = null
+                    setLineSpacing(0f, 1.15f)
+                    setPadding(0, dp(12), 0, 0)
+                })
+            }
+        }
+        homePopup(0, getString(R.string.whats_new_card_title, myVersion()), null, notes,
+            getString(R.string.done) to { setupDialog?.dismiss() },
+            getString(R.string.see_all_changes) to {
+                setupDialog?.dismiss()
+                unlock { openLauncherSettings(R.string.updates); showUpdates() }
+            })
+    }
+
     private fun donePopup() = homePopup(0, getString(R.string.setup_done_title),
         getString(if (homeServiceOn()) R.string.setup_done_body_service else R.string.setup_done_body), null,
         getString(R.string.setup_done) to { setupDialog?.dismiss() })
 
     /** A card in the middle of the screen over the dimmed home screen, in the hold menus' colours. */
-    private fun homePopup(step: Int, title: String, body: String, extra: View?, vararg buttons: Pair<String, () -> Unit>) {
+    private fun homePopup(step: Int, title: String, body: String?, extra: View?, vararg buttons: Pair<String, () -> Unit>) {
         setupDialog?.let { setupDialog = null; it.dismiss() } // replaced, not closed: the dismiss listener leaves the flow alone
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -552,7 +595,7 @@ class MainActivity : Activity() {
             }
             if (step > 0) addView(label(getString(R.string.setup_step, step), 12f).apply { secondary(0.6f) })
             addView(label(title, 22f).apply { setTypeface(typeface, Typeface.BOLD); setPadding(0, dp(4), 0, 0) })
-            addView(label(body, 14f).apply { maxLines = 6; secondary(0.8f); setLineSpacing(0f, 1.15f); setPadding(0, dp(10), 0, 0) })
+            body?.let { addView(label(it, 14f).apply { maxLines = 6; secondary(0.8f); setLineSpacing(0f, 1.15f); setPadding(0, dp(10), 0, 0) }) }
             extra?.let { addView(it) }
             buttons.forEachIndexed { i, (name, action) ->
                 addView(settingsRow(name, "") { if (previewAt >= 0) previewHomeSetup(previewAt + 1) else action() },
@@ -710,11 +753,13 @@ class MainActivity : Activity() {
         val h = bmp.height.toFloat()
         val base = ground and 0x00FFFFFF
         if (wallpaperFade()) Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h, Paint().apply {
+            isDither = true
             shader = LinearGradient(0f, h * 0.28f, 0f, h * 0.5f, base, base or 0xE6000000.toInt(), Shader.TileMode.CLAMP)
         })
         // Photos rarely have the bundled ones' empty sky: a soft veil behind the clock and top-bar icons keeps them readable.
         // Strong over the clock and icons (top ~20%), gone by 30% so the photo still shows above the apps.
         Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h * 0.3f, Paint().apply {
+            isDither = true
             shader = LinearGradient(0f, 0f, 0f, h * 0.3f, intArrayOf(base or 0xC0000000.toInt(), base or 0xA0000000.toInt(), base),
                 floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
         })
@@ -1421,7 +1466,9 @@ class MainActivity : Activity() {
     private fun renderApps() {
         val focusedTag = currentFocus?.tag
         // Rebuilds can happen in the background (an app or HDMI device added); only take focus if the row had it.
-        val takeFocus = currentFocus == null || currentFocus?.parent === appRow
+        // First fill after a cold start: Android already gave the default focus to the top bar's first icon.
+        val firstFill = appRow.childCount == 0 && currentFocus?.parent === wifi.parent
+        val takeFocus = currentFocus == null || currentFocus?.parent === appRow || firstFill
         val gap = dp(GRID_GAP)
         val width = (resources.displayMetrics.widthPixels - dp(96) - gap * (ROW_TILES - 1)) / ROW_TILES
         appRow.removeAllViews()
@@ -1498,9 +1545,14 @@ class MainActivity : Activity() {
     private fun showRowLabel(v: View, focused: Boolean) {
         val label = findViewById<TextView>(R.id.rowLabel)
         if (focused && !editing && rowNames() == "focus") {
-            label.text = v.contentDescription
-            // Posted: on first render focus lands before layout, when every width is still 0.
-            v.post { label.translationX = v.left + v.width / 2f - label.width / 2f }
+            // Name and place change together, or moving quickly shows the next name under the previous tile for a frame.
+            // Posted only on first render, when focus lands before layout and every width is still 0. A post that runs
+            // after focus moved on is skipped, or it would show this old name while a newer tile is selected.
+            val place = {
+                label.text = v.contentDescription
+                label.translationX = v.left + v.width / 2f - label.width / 2f
+            }
+            if (v.width > 0 && label.width > 0) place() else v.post { if (v.isFocused) place() }
             label.animate().alpha(if (dark) 0.85f else 1f).setDuration(160).start()
         } else {
             ui.post { if (currentFocus?.parent !== appRow || editing) label.animate().alpha(0f).setDuration(120).start() }
@@ -1788,16 +1840,23 @@ class MainActivity : Activity() {
             }
             elevation = if (dark) 0f else dp(8).toFloat()
         }
-        val menu = PopupWindow(list, dp(260), LinearLayout.LayoutParams.WRAP_CONTENT, true)
+        val menu = PopupWindow(list, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true)
         items.forEachIndexed { i, (name, action) ->
-            list.addView(settingsRow(name, "") { menu.dismiss(); action() }, LinearLayout.LayoutParams(MATCH_PARENT, dp(40)).apply {
+            list.addView(settingsRow(name, "") { menu.dismiss(); action() }, LinearLayout.LayoutParams(MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 if (i > 0) topMargin = dp(2)
             })
+            list.getChildAt(i).minimumHeight = dp(40)
         }
+        // As wide as the longest item, never narrower than the tile or card it opens from.
+        // A very long translation wraps onto two lines instead of stretching across the screen.
         list.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        menu.width = list.measuredWidth.coerceIn(anchor.width, maxOf(anchor.width, dp(360)))
+        list.measure(View.MeasureSpec.makeMeasureSpec(menu.width, View.MeasureSpec.EXACTLY), View.MeasureSpec.UNSPECIFIED)
         val at = IntArray(2).also { anchor.getLocationInWindow(it) }
         menu.elevation = if (dark) 0f else dp(8).toFloat()
-        menu.showAtLocation(anchor, Gravity.NO_GRAVITY, at[0], maxOf(dp(8), at[1] - list.measuredHeight - dp(8)))
+        // Over the anchor's left edge, but kept inside the row's 48 dp side margin near the right of the screen.
+        val x = minOf(at[0], resources.displayMetrics.widthPixels - dp(48) - menu.width)
+        menu.showAtLocation(anchor, Gravity.NO_GRAVITY, x, maxOf(dp(8), at[1] - list.measuredHeight - dp(8)))
         list.getChildAt(0).requestFocus()
     }
 
@@ -2371,13 +2430,13 @@ class MainActivity : Activity() {
      *    progress and an autoPlay resume link) instead of using Watch Next, so signing in to Stremio
      *    on the TV is all it takes. Channel rows carry no timestamps, so they use the time the app was
      *    last opened from Plume, keeping the app's own order among themselves.
-     * Newest first across apps, at most [PER_APP] each, so one app with ten shows can't bury the others.
+     * Newest first across apps, each app's [PER_APP] newest ahead of the rest, so one app with ten shows can't bury the others.
      */
     private fun queryWatchNext(): List<Prog> {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!
         val watchNext = readPrograms(TvContract.WatchNextPrograms.CONTENT_URI, hidden)
         val channels = continueChannels().flatMap { id ->
-            readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden).map { (_, p) -> prefs.getLong("t_${p.pkg}", 0) to p }
+            readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden).map { (_, p) -> watchSortKey(0, prefs.getLong("t_${p.pkg}", 0)) to p }
         }
         val all = watchNext + channels
         publishingPkgs = all.mapNotNull { it.second.pkg }.toSet()
@@ -2430,7 +2489,7 @@ class MainActivity : Activity() {
         return ids
     }
 
-    /** Pairs of (last engagement time, item); time is 0 for channel rows, which don't have it. */
+    /** Pairs of (sort key, item), see [watchSortKey]; channel rows have no time of their own and get the type "continue". */
     private fun readPrograms(uri: Uri, hidden: Set<String>): List<Pair<Long, Prog>> {
         val out = ArrayList<Pair<Long, Prog>>()
         contentResolver.query(uri, null, null, null, null)?.use { c ->
@@ -2451,7 +2510,7 @@ class MainActivity : Activity() {
                 ).joinToString(" - ")
                 val progress = if (duration > 0 && position >= 1000) (position * 100 / duration).toInt().coerceIn(0, 100) else 0
                 val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), str("package_name"))
-                out += num("last_engagement_time_utc_millis") to prog
+                out += watchSortKey(num("watch_next_type"), num("last_engagement_time_utc_millis")) to prog
             }
         }
         return out
@@ -2490,21 +2549,31 @@ class MainActivity : Activity() {
             return
         }
         watchKey = key
+        watchList = list
         val focusedAt = watchRow.indexOfChild(currentFocus?.parent as? View)
         watchRow.removeAllViews()
         val visible = if (list.isEmpty()) View.GONE else View.VISIBLE
         watchTitle.visibility = visible
         watchScroll.visibility = visible
-        // ~16 ms per card here and only four show at once: build them four per frame, not all 20 in one.
-        fun addCards(from: Int) {
-            if (watchKey != key) return // a newer list replaced this one
-            list.subList(from, minOf(from + 4, list.size)).forEach { watchRow.addView(watchCard(it, watchRow.childCount > 0)) }
-            if (from + 4 < list.size) ui.post { addCards(from + 4) }
-        }
-        addCards(0)
+        // ~16 ms per card here and only four show at once: the first four now, the next four on the next frame.
+        addCardsTo(3)
+        ui.post { if (watchKey == key) addCardsTo(CARDS_AHEAD - 1) } // unless a newer list replaced this one
         if (focusedAt >= 0) {
             ((watchRow.getChildAt(focusedAt.coerceAtMost(watchRow.childCount - 1)) as? LinearLayout)?.getChildAt(0)
                 ?: appRow.getChildAt(0))?.requestFocus()
+        }
+    }
+
+    private var watchList = emptyList<Prog>()
+
+    /**
+     * Cards exist up to index [last] only: the four on screen and the four after them, more as focus moves on.
+     * Every card costs drawing time on each frame of the home screen (20 dropped ~6% of frames on the test
+     * TV, 8 about 2%), on screen or not, so the rest of the list waits until focus gets near.
+     */
+    private fun addCardsTo(last: Int) {
+        while (watchRow.childCount <= minOf(last, watchList.size - 1)) {
+            watchRow.addView(watchCard(watchList[watchRow.childCount], watchRow.childCount > 0))
         }
     }
 
@@ -2536,7 +2605,10 @@ class MainActivity : Activity() {
         val frame = FrameLayout(this)
         style(frame, dp(8), card = true, lift = 1.1f) { focused ->
             title.isSelected = focused
-            if (focused) lastCard = frame
+            if (focused) {
+                lastCard = frame
+                addCardsTo(watchRow.indexOfChild(col) + CARDS_AHEAD)
+            }
         }
         frame.contentDescription = p.title
         frame.addView(img, MATCH_PARENT, MATCH_PARENT)
@@ -2650,9 +2722,11 @@ class MainActivity : Activity() {
         val sheen = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x40FFFFFF, 0x00FFFFFF)).apply {
             cornerRadius = radius.toFloat()
             alpha = 0
+            setDither(true)
         }
         val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (card) cardRest else intArrayOf(0, 0)).apply {
             cornerRadius = radius.toFloat()
+            setDither(true)
         }
         v.background = if (dark && card) rimCard(radius, false) else bg
         if (!dark) v.foreground = sheen
@@ -2683,6 +2757,7 @@ class MainActivity : Activity() {
         val body = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (lit) DARK_CARD_LIT else DARK_CARD).apply {
             cornerRadius = radius.toFloat()
             setStroke(1, if (lit) RIM_SIDE_LIT else RIM_SIDE) // 1px, not 1dp: a hairline stays crisp
+            setDither(true) // near black the gradient has ~8 steps; dithered, they don't show as bands
         }
         return LayerDrawable(arrayOf(body, ColorDrawable(if (lit) RIM_TOP_LIT else RIM_TOP))).apply {
             setLayerGravity(1, Gravity.TOP or Gravity.FILL_HORIZONTAL)
@@ -2734,7 +2809,8 @@ class MainActivity : Activity() {
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait
         const val UNLOCKED_MS = 5 * 60_000L
         const val MEDIA_REQUEST = 3
-        const val PER_APP = 3 // Continue Watching items per app
+        const val PER_APP = 3 // Continue Watching items per app ahead of the rest
+        const val CARDS_AHEAD = 8 // Continue Watching cards built past the focused one (see addCardsTo)
         val READ_PHOTOS = if (Build.VERSION.SDK_INT >= 33) "android.permission.READ_MEDIA_IMAGES" else "android.permission.READ_EXTERNAL_STORAGE"
         /** Minutes between folder photos. */
         val PHOTO_EVERY = linkedMapOf(
