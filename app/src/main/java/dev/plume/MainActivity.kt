@@ -233,6 +233,7 @@ class MainActivity : Activity() {
     private lateinit var allApps: View
     private lateinit var allAppsGrid: GridLayout
     private lateinit var wifi: ImageView
+    private lateinit var glass: GlassLayer // paints the blurred wallpaper under glass tiles
 
     private var resumed = false
     private val refreshIfDirty = Runnable { if (appsDirty && !editing) refreshApps() } // not while a tile is being moved: onResume catches up
@@ -266,6 +267,9 @@ class MainActivity : Activity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         setContentView(R.layout.activity_main)
+        glass = GlassLayer(this)
+        findViewById<ViewGroup>(R.id.root).addView(glass, 1, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)) // over the wallpaper, under the home screen
+        for (id in intArrayOf(R.id.appScroll, R.id.watchScroll, R.id.allApps)) findViewById<View>(id).setOnScrollChangeListener { _, _, _, _, _ -> glass.kick(150) }
         appRow = findViewById(R.id.appRow)
         watchRow = findViewById(R.id.watchRow)
         watchTitle = findViewById(R.id.watchTitle)
@@ -704,8 +708,10 @@ class MainActivity : Activity() {
         fg = if (dark) DARK_TEXT else 0xFF111214.toInt()
         // Cards are see-through, so the wallpaper shows through them like frosted glass: dark ones are rimCard()s at
         // 70%, light ones frosted grey at 78%, and focus lifts them to 80% and 95%.
-        cardRest = if (dark) DARK_CARD else intArrayOf(0xC8E2E5E9.toInt(), 0xC8D8DCE1.toInt())
-        cardLit = if (dark) DARK_CARD_LIT else intArrayOf(0xF2FFFFFF.toInt(), 0xF2FFFFFF.toInt())
+        // Over a blur the light tiles need less colour of their own (43% at rest, 75% selected).
+        val glassy = glassActive()
+        cardRest = if (dark) DARK_CARD else if (glassy) intArrayOf(0x6EE2E5E9, 0x6ED8DCE1) else intArrayOf(0xC8E2E5E9.toInt(), 0xC8D8DCE1.toInt())
+        cardLit = if (dark) DARK_CARD_LIT else if (glassy) intArrayOf(0xBEFFFFFF.toInt(), 0xBEFFFFFF.toInt()) else intArrayOf(0xF2FFFFFF.toInt(), 0xF2FFFFFF.toInt())
         // Must match the colour each wallpaper fades into, or the bottom edge shows a seam.
         ground = if (dark) DARK_BG else 0xFFF3F5F7.toInt()
         findViewById<View>(R.id.root).setBackgroundColor(ground)
@@ -745,6 +751,12 @@ class MainActivity : Activity() {
     /** Fade your own photos into the background at the bottom. Bundled wallpapers have it baked in either way. */
     private fun wallpaperFade() = prefs.getBoolean("wp_fade", true)
 
+    /** Glass: the tiles are see-through over a blur of the wallpaper (a setting, off by default). */
+    private fun glassOn() = prefs.getBoolean("glass", false)
+
+    /** Glass needs a picture to blur: with a plain background the tiles stay as they are. */
+    private fun glassActive() = glassOn() && !currentWallpaper().startsWith("plain:")
+
     private fun wallpaperName(choice: String) = when {
         choice == Bing.CHOICE -> getString(R.string.bing_daily)
         choice.startsWith("folder:") -> getString(R.string.folder_name, choice.substringAfter(':').substringAfter(':'))
@@ -756,6 +768,7 @@ class MainActivity : Activity() {
         val choice = currentWallpaper()
         if (choice.startsWith("plain:")) { // the root's ground colour shows through
             view.setImageDrawable(null)
+            glass.setBlur(null)
             return
         }
         val fallback = defaultWallpaper(dark)
@@ -767,7 +780,9 @@ class MainActivity : Activity() {
             } catch (e: OutOfMemoryError) { // a picture on a TV short of memory: show the default instead of crashing
                 null
             } ?: decodeWallpaper(fallback)
+            val blur = if (bmp != null && glassActive()) glassPixels(bmp, ground, dark) else null
             ui.post {
+                glass.setBlur(blur)
                 val old = view.drawable
                 if (old == null || bmp == null) return@post view.setImageBitmap(bmp)
                 // Soft change from one photo to the next; then drop the old one so only one stays in memory.
@@ -1150,6 +1165,10 @@ class MainActivity : Activity() {
             },
             R.string.light_wallpaper to Triple(getString(R.string.light_wallpaper), wallpaperName(currentWallpaper(false))) { pickWallpaper(false) },
             R.string.dark_wallpaper to Triple(getString(R.string.dark_wallpaper), wallpaperName(currentWallpaper(true))) { pickWallpaper(true) },
+            R.string.glass to Triple(getString(R.string.glass), toggle(glassOn())) {
+                prefs.edit().putBoolean("glass", !glassOn()).putBoolean("reopen_settings", true).apply()
+                recreate() // tile colours are applied once per activity; reopen the panel after
+            },
             R.string.photo_fade to Triple(getString(R.string.photo_fade), toggle(wallpaperFade())) {
                 prefs.edit().putBoolean("wp_fade", !wallpaperFade()).apply()
                 loadWallpaper()
@@ -1225,7 +1244,7 @@ class MainActivity : Activity() {
         val on = { b: Boolean -> getString(if (b) R.string.on else R.string.off) }
         val sections = listOf(
             Triple(R.string.section_appearance, "${rows[R.string.theme]!!.second} · ${wallpaperName(currentWallpaper(dark))}",
-                listOf(R.string.theme, R.string.light_wallpaper, R.string.dark_wallpaper, R.string.photo_fade, R.string.folder_photo_changes)),
+                listOf(R.string.theme, R.string.light_wallpaper, R.string.dark_wallpaper, R.string.photo_fade, R.string.glass, R.string.folder_photo_changes)),
             Triple(R.string.section_app_row, "${rows[R.string.apps_in_row]!!.second} · ${rows[R.string.row_position]!!.second}",
                 listOf(R.string.edit_apps_row, R.string.sort_apps, R.string.apps_in_row, R.string.row_position, R.string.app_names, R.string.icon_style)),
             Triple(R.string.bottom_row, rowName(), listOf(R.string.row_name, R.string.cw_channels, R.string.cw_apps, R.string.restore_hidden)),
@@ -3012,7 +3031,9 @@ class MainActivity : Activity() {
         val sheen = Baked("sheen $radius", gradient(sheenColors)).apply { alpha = 0 }
         val rest = if (card) Baked("card $radius ${cardRest.contentToString()}", gradient(cardRest)) else null
         val lit = if (card) Baked("card $radius ${cardLit.contentToString()}", gradient(cardLit)) else null
-        v.background = if (dark && card) rimCard(radius, false) else rest ?: GradientDrawable().apply { cornerRadius = radius.toFloat() }
+        val frosted = card && glassActive()
+        if (frosted) glass.add(v, radius.toFloat())
+        v.background = if (dark && card) rimCard(radius, false, frosted = frosted) else rest ?: GradientDrawable().apply { cornerRadius = radius.toFloat() }
         if (!dark) v.foreground = sheen
         v.clipToOutline = true
         v.elevation = if (card) dp(2).toFloat() else 0f
@@ -3021,8 +3042,9 @@ class MainActivity : Activity() {
         v.setOnLongClickListener { if (!holdFired) fireHold(v); true }
         v.setOnFocusChangeListener { _, focused ->
             sheen.alpha = if (focused) 255 else 0
-            if (card && dark) v.background = rimCard(radius, focused)
+            if (card && dark) v.background = rimCard(radius, focused, frosted = frosted)
             else if (card) v.background = if (focused) lit else rest
+            if (frosted) glass.kick(260) // the lift moves the tile: its blur follows
             v.animate()
                 .scaleX(if (focused) lift else 1f).scaleY(if (focused) lift else 1f)
                 .translationZ(if (focused) dp(14).toFloat() else 0f)
@@ -3036,14 +3058,18 @@ class MainActivity : Activity() {
      * lit from above. [lit] is the focused look: brighter glass and rim. [solid]: no see-through, for menus and
      * dialogs, which sit over other things and have to stay readable (light mode's are solid too).
      */
-    private fun rimCard(radius: Int, lit: Boolean, solid: Boolean = false): Drawable {
-        val glass = (if (lit) DARK_CARD_LIT else DARK_CARD).let { c -> if (solid) IntArray(c.size) { c[it] or 0xFF000000.toInt() } else c }
+    private fun rimCard(radius: Int, lit: Boolean, solid: Boolean = false, frosted: Boolean = false): Drawable {
+        val glass = (if (lit) DARK_CARD_LIT else DARK_CARD).let { c ->
+            if (solid) IntArray(c.size) { c[it] or 0xFF000000.toInt() }
+            else if (frosted) IntArray(c.size) { c[it] and 0xFFFFFF or ((if (lit) 0x66 else 0x40) shl 24) } // 25% at rest, 40% selected, over the blur
+            else c
+        }
         val body = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, glass).apply {
             cornerRadius = radius.toFloat()
             setStroke(1, if (lit) RIM_SIDE_LIT else RIM_SIDE) // 1px, not 1dp: a hairline stays crisp
             setDither(true) // near black the gradient has ~8 steps; dithered, they don't show as bands
         }
-        return Baked("rim $radius $lit $solid", LayerDrawable(arrayOf(body, ColorDrawable(if (lit) RIM_TOP_LIT else RIM_TOP))).apply {
+        return Baked("rim $radius $lit $solid $frosted", LayerDrawable(arrayOf(body, ColorDrawable(if (lit) RIM_TOP_LIT else RIM_TOP))).apply {
             setLayerGravity(1, Gravity.TOP or Gravity.FILL_HORIZONTAL)
             setLayerHeight(1, 1)
             setLayerInsetLeft(1, radius)
