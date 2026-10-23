@@ -5,6 +5,7 @@
     <string name="n_of_m">%1$d of %2$d</string>
     <string name="n_hidden">%1$d hidden</string>
     <string name="n_off">%1$d off</string>
+    <string name="n_on">%1$d on</string>
     <string name="update_available_row">%1$s available</string>
     <string name="up_to_date_row">Up to date (%1$s)</string>
     <string name="too_many_tries">Too many tries. Try again in %1$d s.</string>
@@ -64,7 +65,12 @@
     <string name="banner">Banner</string>
     <string name="restore_hidden">Restore hidden shows</string>
     <string name="none_hidden">None hidden</string>
-    <string name="cw_apps">Continue Watching apps</string>
+    <string name="cw_apps">Apps</string>
+    <string name="cw_channels">Channels</string>
+    <string name="row_name">Row name</string>
+    <string name="watch_next">Android TV Watch Next</string>
+    <string name="bottom_row">Bottom row</string>
+    <string name="automatic">Automatic</string>
     <string name="all_on">All on</string>
     <string name="weather">Weather</string>
     <string name="weather_units">Weather units</string>

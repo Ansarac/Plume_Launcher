@@ -29,6 +29,6 @@ body:
     attributes:
       label: Fit with Plume
       options:
-        - label: This doesn't add recommendation rows, ads, tracking, an account, or a third-party library.
+        - label: This doesn't add ads, tracking, an account, or a third-party library.
           required: true
         - label: I'd like to build this myself (please wait for a reply before starting).
