@@ -24,4 +24,10 @@ class HdmiInputsTest {
         assertTrue(inRow("com.app", emptySet()))
         assertFalse(inRow("com.app", setOf("com.app")))
     }
+
+    @Test fun theUpdateKeepsTheInputsThatWereInTheRow() {
+        val inputs = listOf("hdmi:1" to false, "hdmi:2" to true, "hdmi:3" to true, "hdmi:4" to false)
+        // 1 has a signal; 2 has none; 3 has none but was pinned; 4 has a signal but was taken out of the row
+        assertEquals(setOf("hdmi:1", "hdmi:3"), pinsAfterSourcesUpdate(inputs, setOf("hdmi:4"), setOf("hdmi:3")))
+    }
 }

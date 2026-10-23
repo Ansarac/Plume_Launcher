@@ -176,6 +176,13 @@ internal fun isAudioDevice(name: String) = name.lowercase().let { n -> AUDIO_WOR
 /** An app is in the home row unless it was taken out; it stays in All apps either way. */
 internal fun inRow(pkg: String, hidden: Set<String>) = pkg !in hidden
 
+/**
+ * Before the Sources list, an input with a signal or a CEC name was in the row without a pin. Once, on the update,
+ * pin every input that was in the row so that no tile goes away. [inputs]: the input key and whether it has no signal.
+ */
+internal fun pinsAfterSourcesUpdate(inputs: List<Pair<String, Boolean>>, hidden: Set<String>, pinned: Set<String>) =
+    pinned + inputs.filter { (pkg, offline) -> pkg !in hidden && (!offline || pkg in pinned) }.map { it.first }
+
 /** Allowed to start an activity from the background because the Home button service is bound. */
 class Updated : BroadcastReceiver() {
     override fun onReceive(c: Context, i: Intent) {
@@ -1413,6 +1420,7 @@ class MainActivity : Activity() {
             }
             val inputs = hdmiInputs()
             ui.post {
+                if (inputs.isNotEmpty() && !prefs.getBoolean("inputs_moved", false)) moveInputsToSources(inputs)
                 apps = list
                 APPS = list
                 sources = inputs
@@ -1478,6 +1486,19 @@ class MainActivity : Activity() {
 
     /** The apps, and the inputs pinned to the row: the entries the row and All apps are made of. */
     private fun listed(): List<App> = apps + sources.filter { it.pkg in pinnedInputs() }
+
+    /** Once: after an update, the inputs in the row stay pinned, and the inputs drop out of row_hidden, where only apps go now. */
+    private fun moveInputsToSources(inputs: List<App>) {
+        val hidden = rowHiddenSet()
+        val info = packageManager.getPackageInfo(packageName, 0)
+        val pins = if (info.firstInstallTime == info.lastUpdateTime) pinnedInputs() // a new install: no tile to keep
+            else pinsAfterSourcesUpdate(inputs.map { it.pkg to it.offline }, hidden, pinnedInputs())
+        prefs.edit()
+            .putStringSet("inputs_pinned", pins)
+            .putStringSet("row_hidden", hidden.filterNot { it.startsWith(HDMI) }.toSet())
+            .putBoolean("inputs_moved", true)
+            .apply()
+    }
 
     private fun togglePin(src: App) {
         val pinned = pinnedInputs()
