@@ -192,8 +192,17 @@ class Updated : BroadcastReceiver() {
 
 class MainActivity : Activity() {
 
-    /** [offline]: an HDMI port with no signal right now (the Sources list says so). */
-    private class App(val pkg: String, val label: String, val launch: Intent, val icon: Drawable, val offline: Boolean = false)
+    /**
+     * An app's icon is loaded once, but not held: the mono mark and the accent colour are made from it and kept, and a
+     * tile that shows the icon holds its own copy, so ~20 launcher icons (up to a megabyte each) need not stay in memory.
+     * If the garbage collector took it before it was needed, [load] brings it back.
+     * [offline]: an HDMI port with no signal right now (the Sources list says so).
+     */
+    private class App(val pkg: String, val label: String, val launch: Intent, icon: Drawable, val offline: Boolean = false, private val load: (() -> Drawable)? = null) {
+        private val strong = if (load == null) icon else null // our own drawables (HDMI marks) are tiny and have no loader
+        private var weak = java.lang.ref.WeakReference(icon)
+        val icon: Drawable get() = strong ?: weak.get() ?: load!!().also { weak = java.lang.ref.WeakReference(it) }
+    }
     /** [group]: what shares the front places in Continue Watching, the app or, for an app channel, that channel. */
     private class Prog(val title: String, val sub: String, val progress: Int, val image: String?, val intent: String?, val pkg: String?,
                        val group: String? = pkg)
@@ -1532,6 +1541,7 @@ class MainActivity : Activity() {
                     Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                         .setComponent(ComponentName(a.packageName, a.name)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     a.loadIcon(pm),
+                    load = { a.loadIcon(pm) },
                 )
             }
     }
