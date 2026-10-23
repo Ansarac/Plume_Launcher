@@ -101,6 +101,8 @@
     <string name="remove_from_row">Remove from row</string>
     <string name="removed_from_row">Removed from the row. It\'s still in All apps.</string>
     <string name="app_info">App info</string>
+    <string name="uninstall">Uninstall</string>
+    <string name="cant_uninstall">Cannot uninstall this app</string>
     <string name="remove_from_cw">Remove from Continue Watching</string>
     <string name="open_app">Open app</string>
     <string name="moving_hint">Moving:  ◀ ▶ move  ·  OK place</string>
