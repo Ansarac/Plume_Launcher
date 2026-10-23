@@ -16,6 +16,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- Continue Watching can show other channels from your apps, such as Plex On Deck or a Stremio catalog. Select **Plume settings → Continue Watching → Continue Watching channels**, then turn on the channels you want.
 - If you set a PIN, Plume asks for it before it opens Wi-Fi or Android settings from the top bar.
 - **Android 8:** Plume opens on Android 8.0 and 8.1. Before, it closed immediately after it opened.
 - When you move quickly along the app row, Plume shows an app's name only when you reach that app.

@@ -136,6 +136,13 @@ internal fun <T> newestPerApp(items: List<Pair<Long, T>>, perApp: Int, app: (T) 
     return front + rest
 }
 
+/**
+ * Whether an app's home-screen channel feeds Continue Watching. Channels named "Continue Watching" (Stremio's) start
+ * on, every other one (Plex On Deck, a Stremio catalog) starts off; [flipped] holds the ones the user switched.
+ */
+internal fun channelOn(name: String, key: String, flipped: Set<String>) =
+    name.equals("Continue Watching", ignoreCase = true) != (key in flipped)
+
 /** Layout lock PIN, stored as "salt:sha256". Keeps it out of plain sight in a prefs backup; not real security. */
 internal fun hashPin(pin: String, salt: String = ByteArray(8).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }) =
     salt + ":" + MessageDigest.getInstance("SHA-256").digest((salt + pin).toByteArray()).joinToString("") { "%02x".format(it) }
@@ -1023,6 +1030,8 @@ class MainActivity : Activity() {
         val unit = if (weather == "off") prefs.getString("wx_unit", "c")!! else weather
         val cwOff = prefs.getStringSet("cw_off", emptySet())!!.count { pkg -> apps.any { it.pkg == pkg } } // uninstalled ones don't count
         val rowHidden = rowHiddenSet().count { pkg -> apps.any { it.pkg == pkg } }
+        val chFlip = prefs.getStringSet("ch_flip", emptySet())!!
+        val channelsOn = appChannels().distinctBy { (_, p, n) -> channelKey(p, n) }.count { (_, p, n) -> channelOn(n, channelKey(p, n), chFlip) }
         val names = rowNames()
         val colour = colourIcons()
         // Rows with more than two values also step back with Left; two-value rows flip either way.
@@ -1079,6 +1088,7 @@ class MainActivity : Activity() {
                 renderSettings(R.string.restore_hidden)
             },
             R.string.cw_apps to Triple(getString(R.string.cw_apps), if (cwOff == 0) getString(R.string.all_on) else getString(R.string.n_off, cwOff)) { pickWatchSources() },
+            R.string.cw_channels to Triple(getString(R.string.cw_channels), getString(R.string.n_on, channelsOn)) { pickChannels() },
             // "weather" is off/c/f as before; "wx_unit" keeps the unit while it's off.
             R.string.weather to Triple(getString(R.string.weather), toggle(weather != "off")) {
                 if (weather == "off") prefs.edit().putString("weather", unit).apply()
@@ -1125,7 +1135,7 @@ class MainActivity : Activity() {
                 listOf(R.string.theme, R.string.light_wallpaper, R.string.dark_wallpaper, R.string.photo_fade, R.string.folder_photo_changes)),
             Triple(R.string.section_app_row, "${rows[R.string.apps_in_row]!!.second} · ${rows[R.string.row_position]!!.second}",
                 listOf(R.string.edit_apps_row, R.string.sort_apps, R.string.apps_in_row, R.string.row_position, R.string.app_names, R.string.icon_style)),
-            Triple(R.string.continue_watching, rows[R.string.cw_apps]!!.second, listOf(R.string.cw_apps, R.string.restore_hidden)),
+            Triple(R.string.continue_watching, rows[R.string.cw_apps]!!.second, listOf(R.string.cw_apps, R.string.cw_channels, R.string.restore_hidden)),
             Triple(R.string.section_weather, if (weather == "off") on(false) else "${rows[R.string.weather_units]!!.second} · ${rows[R.string.weather_location]!!.second}",
                 listOf(R.string.weather, R.string.weather_units, R.string.weather_location)),
             Triple(R.string.section_screensaver, rows[R.string.screensaver]!!.second, listOf(R.string.screensaver, R.string.test_screensaver, R.string.screensaver_timing)),
@@ -1962,12 +1972,14 @@ class MainActivity : Activity() {
     }
 
     /** A page of on/off rows saved as the set of keys that are off; [done] runs on Back. */
-    private fun toggles(title: String, items: List<Pair<String, String>>, pref: String, on: String, off: String, focus: Int = 0, done: () -> Unit) {
+    /** [pref] holds the keys switched from where they start: on, or off for the keys in [startsOff]. */
+    private fun toggles(title: String, items: List<Pair<String, String>>, pref: String, on: String, off: String, focus: Int = 0,
+                        startsOff: Set<String> = emptySet(), done: () -> Unit) {
         val offSet = prefs.getStringSet(pref, emptySet())!!
         showPage(title, items.mapIndexed { i, (name, key) ->
-            page(name, if (key in offSet) off else on) {
+            page(name, if ((key in offSet) != (key in startsOff)) off else on) {
                 prefs.edit().putStringSet(pref, if (key in offSet) offSet - key else offSet + key).apply()
-                toggles(title, items, pref, on, off, i, done)
+                toggles(title, items, pref, on, off, i, startsOff, done)
             }
         }, focus, back = done)
     }
@@ -2448,10 +2460,10 @@ class MainActivity : Activity() {
     /**
      * Two sources, same columns:
      * 1. The system Watch Next list (Netflix etc.), newest engagement first.
-     * 2. Any app's own home-screen channel named "Continue Watching". Stremio publishes one (with
-     *    progress and an autoPlay resume link) instead of using Watch Next, so signing in to Stremio
-     *    on the TV is all it takes. Channel rows carry no timestamps, so they use the time the app was
-     *    last opened from Plume, keeping the app's own order among themselves.
+     * 2. Apps' own home-screen channels the user switched on (see [channelOn]); ones named "Continue Watching"
+     *    are on to start with. Stremio publishes one (with progress and an autoPlay resume link) instead of
+     *    using Watch Next, so signing in to Stremio on the TV is all it takes. Channel rows carry no timestamps,
+     *    so they use the time the app was last opened from Plume, keeping the app's own order among themselves.
      * Newest first across apps, each app's [PER_APP] newest ahead of the rest, so one app with ten shows can't bury the others.
      */
     private fun queryWatchNext(): List<Prog> {
@@ -2496,19 +2508,46 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun continueChannels(): List<Long> {
-        val ids = ArrayList<Long>()
+    /** Every other app's home-screen channel as (id, package, name); empty where Android won't let us read them. */
+    private fun appChannels(): List<Triple<Long, String, String>> = try {
+        val out = ArrayList<Triple<Long, String, String>>()
         contentResolver.query(TvContract.Channels.CONTENT_URI, null, null, null, null)?.use { c ->
             val name = c.getColumnIndex("display_name")
             val pkg = c.getColumnIndex("package_name")
             val id = c.getColumnIndex("_id")
             while (c.moveToNext()) {
-                if (c.getString(name).equals("Continue Watching", ignoreCase = true) && c.getString(pkg) != packageName) {
-                    ids += c.getLong(id)
-                }
+                val p = c.getString(pkg) ?: continue
+                val n = c.getString(name) ?: continue
+                if (p != packageName) out += Triple(c.getLong(id), p, n)
             }
         }
-        return ids
+        out
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    private fun channelKey(pkg: String, name: String) = "$pkg/$name"
+
+    private fun continueChannels(): List<Long> {
+        val flipped = prefs.getStringSet("ch_flip", emptySet())!!
+        return appChannels().filter { (_, p, n) -> channelOn(n, channelKey(p, n), flipped) }.map { it.first }
+    }
+
+    /** Pick which apps' channels fill Continue Watching, by name ("Plex · On Deck"); only ones on this TV now are listed. */
+    private fun pickChannels() {
+        val channels = appChannels().distinctBy { (_, p, n) -> channelKey(p, n) }
+        if (channels.isEmpty()) {
+            Toast.makeText(this, getString(R.string.no_channels), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val label = apps.associate { it.pkg to it.label }
+        val items = channels.map { (_, p, n) -> "${label[p] ?: p} · $n" to channelKey(p, n) }.sortedBy { it.first.lowercase() }
+        val startsOff = channels.filter { (_, p, n) -> !channelOn(n, channelKey(p, n), emptySet()) }.map { (_, p, n) -> channelKey(p, n) }.toSet()
+        toggles(getString(R.string.cw_channels), items, "ch_flip", getString(R.string.on), getString(R.string.off), startsOff = startsOff) {
+            watchKey = null
+            refreshWatchNext()
+            renderSettings(R.string.cw_channels)
+        }
     }
 
     /** Pairs of (sort key, item), see [watchSortKey]; channel rows have no time of their own and get the type "continue". */
