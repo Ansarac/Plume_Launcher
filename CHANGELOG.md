@@ -14,6 +14,10 @@ Write every entry in ASD-STE100 Simplified Technical English:
 
 Put changes that are not released under `## Unreleased`. Rename that heading to the version number when you release.
 
+## Unreleased
+
+- A long app name no longer runs past its tile. It scrolls slowly while the app is selected.
+
 ## 1.5
 
 ### New
