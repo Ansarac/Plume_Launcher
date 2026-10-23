@@ -250,9 +250,9 @@ class MainActivity : Activity() {
 
         // Top bar: network, All apps, Android settings, launcher settings. Round, lit on focus.
         for ((id, action) in listOf<Pair<Int, () -> Unit>>(
-            R.id.wifi to { openSettings(Settings.ACTION_WIFI_SETTINGS) },
+            R.id.wifi to { unlock { openSettings(Settings.ACTION_WIFI_SETTINGS) } },
             R.id.allAppsButton to { openAllApps() },
-            R.id.systemSettings to { openSettings(Settings.ACTION_SETTINGS) },
+            R.id.systemSettings to { unlock { openSettings(Settings.ACTION_SETTINGS) } },
             R.id.launcherSettings to { unlock { openLauncherSettings() } },
         )) findViewById<ImageView>(id).apply {
             setColorFilter(fg)
@@ -592,7 +592,7 @@ class MainActivity : Activity() {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(28), dp(24), dp(28), dp(20))
-            background = if (dark) rimCard(dp(16), false) else GradientDrawable().apply {
+            background = if (dark) rimCard(dp(16), false, solid = true) else GradientDrawable().apply {
                 cornerRadius = dp(16).toFloat()
                 setColor(0xFFF7F8FA.toInt())
             }
@@ -668,10 +668,10 @@ class MainActivity : Activity() {
     private fun applyTheme() {
         dark = wantDark()
         fg = if (dark) DARK_TEXT else 0xFF111214.toInt()
-        // Dark cards are rimCard()s on true black. Light cards are frosted grey glass, so they still read on
-        // white wallpapers; focus turns them white.
-        cardRest = if (dark) DARK_CARD else intArrayOf(0xD9E2E5E9.toInt(), 0xD9D8DCE1.toInt())
-        cardLit = if (dark) DARK_CARD_LIT else intArrayOf(Color.WHITE, Color.WHITE)
+        // Cards are see-through, so the wallpaper shows through them like frosted glass: dark ones are rimCard()s at
+        // 70%, light ones frosted grey at 78%, and focus lifts them to 80% and 95%.
+        cardRest = if (dark) DARK_CARD else intArrayOf(0xC8E2E5E9.toInt(), 0xC8D8DCE1.toInt())
+        cardLit = if (dark) DARK_CARD_LIT else intArrayOf(0xF2FFFFFF.toInt(), 0xF2FFFFFF.toInt())
         // Must match the colour each wallpaper fades into, or the bottom edge shows a seam.
         ground = if (dark) DARK_BG else 0xFFF3F5F7.toInt()
         findViewById<View>(R.id.root).setBackgroundColor(ground)
@@ -1179,9 +1179,9 @@ class MainActivity : Activity() {
     }
 
     // ---------- layout lock ----------
-    // A PIN in front of Plume settings and everything that changes the home screen; apps still open as usual.
-    // It keeps the layout safe from small hands, it doesn't keep apps from kids: voice search and Android
-    // settings get past it, so it's called a layout lock, not parental controls.
+    // A PIN in front of Plume settings, the Wi-Fi and Android settings icons, and everything that changes the home
+    // screen; apps still open as usual. It keeps the layout safe from small hands, it doesn't keep apps from kids:
+    // voice search and the remote's Settings button get past it, so it's called a layout lock, not parental controls.
 
     private fun lockOn() = prefs.contains("lock_pin")
 
@@ -1865,7 +1865,7 @@ class MainActivity : Activity() {
         val list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(6), dp(6), dp(6))
-            background = if (dark) rimCard(dp(12), false) else GradientDrawable().apply {
+            background = if (dark) rimCard(dp(12), false, solid = true) else GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat()
                 setColor(0xFFF7F8FA.toInt())
             }
@@ -2780,10 +2780,12 @@ class MainActivity : Activity() {
 
     /**
      * A dark-mode card on true black: near-black glass with a hairline rim, brighter along the top edge as if
-     * lit from above. [lit] is the focused look: brighter glass and rim.
+     * lit from above. [lit] is the focused look: brighter glass and rim. [solid]: no see-through, for menus and
+     * dialogs, which sit over other things and have to stay readable (light mode's are solid too).
      */
-    private fun rimCard(radius: Int, lit: Boolean): Drawable {
-        val body = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (lit) DARK_CARD_LIT else DARK_CARD).apply {
+    private fun rimCard(radius: Int, lit: Boolean, solid: Boolean = false): Drawable {
+        val glass = (if (lit) DARK_CARD_LIT else DARK_CARD).let { c -> if (solid) IntArray(c.size) { c[it] or 0xFF000000.toInt() } else c }
+        val body = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, glass).apply {
             cornerRadius = radius.toFloat()
             setStroke(1, if (lit) RIM_SIDE_LIT else RIM_SIDE) // 1px, not 1dp: a hairline stays crisp
             setDither(true) // near black the gradient has ~8 steps; dithered, they don't show as bands
@@ -2834,8 +2836,9 @@ class MainActivity : Activity() {
         const val DARK_SURFACE = 0xFF0B0B0B.toInt() // placeholders behind images
         const val DARK_TEXT = 0xFFF5F5F5.toInt()
         const val DARK_TEXT_2 = 0xFF7A7A7A.toInt() // values, unfocused rows, supporting text
-        val DARK_CARD = intArrayOf(0xFF0B0B0B.toInt(), 0xFF040404.toInt())
-        val DARK_CARD_LIT = intArrayOf(0xFF141414.toInt(), 0xFF070707.toInt())
+        // Translucent (70% at rest, 80% selected), so the wallpaper shows through the tiles like frosted glass.
+        val DARK_CARD = intArrayOf(0xB30B0B0B.toInt(), 0xB3040404.toInt())
+        val DARK_CARD_LIT = intArrayOf(0xCC141414.toInt(), 0xCC070707.toInt())
         const val RIM_TOP = 0x17FFFFFF // white 9%
         const val RIM_SIDE = 0x0AFFFFFF // white 4%
         const val RIM_TOP_LIT = 0x38FFFFFF // white 22%
