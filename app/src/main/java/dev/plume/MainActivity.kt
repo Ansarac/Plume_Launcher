@@ -627,13 +627,15 @@ class MainActivity : Activity() {
     /** A card in the middle of the screen over the dimmed home screen, in the hold menus' colours. */
     private fun homePopup(step: Int, title: String, body: String?, extra: View?, vararg buttons: Pair<String, () -> Unit>) {
         setupDialog?.let { setupDialog = null; it.dismiss() } // replaced, not closed: the dismiss listener leaves the flow alone
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(28), dp(24), dp(28), dp(20))
+        val card: LinearLayout = if (frosted()) glassSurface(dp(20).toFloat()) else LinearLayout(this).apply {
             background = if (dark) rimCard(dp(16), false, solid = true) else GradientDrawable().apply {
                 cornerRadius = dp(16).toFloat()
                 setColor(0xFFF7F8FA.toInt())
             }
+        }
+        card.apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(28), dp(24), dp(28), dp(20))
             if (step > 0) addView(label(getString(R.string.setup_step, step), 12f).apply { secondary(0.6f) })
             addView(label(title, 22f).apply { setTypeface(typeface, Typeface.BOLD); setPadding(0, dp(4), 0, 0) })
             body?.let { addView(label(it, 14f).apply { maxLines = 6; secondary(0.8f); setLineSpacing(0f, 1.15f); setPadding(0, dp(10), 0, 0) }) }
@@ -649,7 +651,7 @@ class MainActivity : Activity() {
         dialog.window?.run {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setLayout(dp(if (extra != null) 600 else 480), ViewGroup.LayoutParams.WRAP_CONTENT)
-            setDimAmount(0.6f)
+            setDimAmount(if (frosted()) 0.35f else 0.6f) // glass shows what is behind, so it needs less dimming
         }
         dialog.setOnDismissListener {
             if (setupDialog !== dialog) return@setOnDismissListener
@@ -757,6 +759,29 @@ class MainActivity : Activity() {
     /** Glass needs a picture to blur: with a plain background the tiles stay as they are. */
     private fun glassActive() = glassOn() && !currentWallpaper().startsWith("plain:")
 
+    /** The menus, the cards and the settings panel are glass too when Glass is on. */
+    private fun frosted() = glassActive()
+
+    /** The glass surfaces that are on screen, so that a wallpaper change (or a blur that arrives late) reaches them. */
+    private val glassSurfaces = ArrayList<java.lang.ref.WeakReference<GlassDrawable>>()
+
+    /** A frosted surface in this theme: the blurred wallpaper under it, a tint, a hairline rim and a little light on top. */
+    private fun glassSurface(round: Float, flatRight: Boolean = false): GlassBox = GlassBox(this).also { styleGlass(it.glass, round, flatRight) }
+
+    private fun styleGlass(g: GlassDrawable, round: Float, flatRight: Boolean = false) {
+        g.round = round
+        g.flatRight = flatRight
+        g.wash = if (dark) 0x8C000000.toInt() else 0xA8FFFFFF.toInt() // 55% black, or 66% white
+        g.rim = if (dark) 0x33FFFFFF else 0x1F000000
+        g.highlight = if (dark) 0x14FFFFFF else 0x66FFFFFF
+        g.setBlur(glass.blur)
+        glassSurfaces.removeAll { it.get() == null }
+        glassSurfaces.add(java.lang.ref.WeakReference(g))
+    }
+
+    /** Supporting text in dark mode: dim grey on black, lighter on glass, where it sits over a photo. */
+    private fun text2() = if (frosted()) 0xFFCCCCCC.toInt() else DARK_TEXT_2
+
     private fun wallpaperName(choice: String) = when {
         choice == Bing.CHOICE -> getString(R.string.bing_daily)
         choice.startsWith("folder:") -> getString(R.string.folder_name, choice.substringAfter(':').substringAfter(':'))
@@ -783,6 +808,8 @@ class MainActivity : Activity() {
             val blur = if (bmp != null && glassActive()) glassPixels(bmp, ground, dark) else null
             ui.post {
                 glass.setBlur(blur)
+                glassSurfaces.forEach { it.get()?.setBlur(glass.blur) } // menus and cards that are open, and the panel
+                if (settingsScrim.visibility == View.VISIBLE) showPanelGlass() // a wallpaper picked from the panel itself
                 val old = view.drawable
                 if (old == null || bmp == null) return@post view.setImageBitmap(bmp)
                 // Soft change from one photo to the next; then drop the old one so only one stays in memory.
@@ -1102,14 +1129,29 @@ class MainActivity : Activity() {
     private fun showPanel() {
         panelFrom = currentFocus
         // Dark: true black, set apart from the home screen by a hairline on its left edge.
-        findViewById<View>(R.id.settingsPanel).background = if (!dark) ColorDrawable(0xFFF7F8FA.toInt())
-            else LayerDrawable(arrayOf(ColorDrawable(DARK_BG), ColorDrawable(PANEL_EDGE))).apply {
-                setLayerGravity(1, Gravity.START or Gravity.FILL_VERTICAL)
-                setLayerWidth(1, 1)
-            }
+        showPanelGlass()
         findViewById<TextView>(R.id.settingsTitle).setTextColor(fg)
         settingsScrim.visibility = View.VISIBLE
         homeFocusable(false)
+    }
+
+    /** The panel is frosted glass over the wallpaper when Glass is on, and the plain surface otherwise. */
+    private fun showPanelGlass() {
+        val panel = findViewById<GlassBox>(R.id.settingsPanel)
+        if (frosted()) {
+            panel.background = null
+            panel.setWillNotDraw(false)
+            styleGlass(panel.glass, dp(22).toFloat(), flatRight = true)
+            settingsScrim.setBackgroundColor(0x55000000)
+        } else {
+            panel.setWillNotDraw(true)
+            panel.background = if (!dark) ColorDrawable(0xFFF7F8FA.toInt())
+                else LayerDrawable(arrayOf(ColorDrawable(DARK_BG), ColorDrawable(PANEL_EDGE))).apply {
+                    setLayerGravity(1, Gravity.START or Gravity.FILL_VERTICAL)
+                    setLayerWidth(1, 1)
+                }
+            settingsScrim.setBackgroundColor(0x99000000.toInt())
+        }
     }
 
     private fun closeLauncherSettings() {
@@ -1455,7 +1497,7 @@ class MainActivity : Activity() {
             background = bg
             isFocusable = true
             isClickable = true
-            val name = label(title, 14f).apply { if (dark) setTextColor(DARK_TEXT_2) }
+            val name = label(title, 14f).apply { if (dark) setTextColor(text2()) }
             addView(name, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             val shown = if (value == TOGGLE_ON || value == TOGGLE_OFF) null else label(value, 13f).apply { secondary(0.6f) }
             if (shown == null) addView(switch(value == TOGGLE_ON), LinearLayout.LayoutParams(dp(36), dp(20)))
@@ -1468,7 +1510,7 @@ class MainActivity : Activity() {
                 if (dark) background = if (focused) rimCard(dp(8), true) else bg
                 else bg.colors = if (focused) intArrayOf(Color.WHITE, Color.WHITE) else intArrayOf(0, 0)
                 // The title glides to bright rather than snapping, so moving through the list feels smooth.
-                if (dark) ValueAnimator.ofArgb(name.currentTextColor, if (focused) DARK_TEXT else DARK_TEXT_2).apply {
+                if (dark) ValueAnimator.ofArgb(name.currentTextColor, if (focused) DARK_TEXT else text2()).apply {
                     duration = 160
                     interpolator = DECELERATE
                     addUpdateListener { name.setTextColor(it.animatedValue as Int) }
@@ -2039,18 +2081,17 @@ class MainActivity : Activity() {
         ))
     }
 
-    /** A small Plume-styled menu just above [anchor]; Back closes it. */
     /** A small Plume-styled menu just above [anchor] (under it when [below]); Back closes it. [rows] builds its rows. */
     private fun popupMenu(anchor: View, below: Boolean = false, rows: (dismiss: () -> Unit) -> List<View>) {
-        val list = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(6), dp(6), dp(6), dp(6))
+        val list: LinearLayout = if (frosted()) glassSurface(dp(14).toFloat()) else LinearLayout(this).apply {
             background = if (dark) rimCard(dp(12), false, solid = true) else GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat()
                 setColor(0xFFF7F8FA.toInt())
             }
             elevation = if (dark) 0f else dp(8).toFloat()
         }
+        list.orientation = LinearLayout.VERTICAL
+        list.setPadding(dp(6), dp(6), dp(6), dp(6))
         val menu = PopupWindow(list, LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, true)
         rows { menu.dismiss() }.forEachIndexed { i, row ->
             list.addView(row, LinearLayout.LayoutParams(MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
@@ -3102,7 +3143,7 @@ class MainActivity : Activity() {
     private val baked = HashMap<String, Bitmap>()
 
     /** Supporting text: the secondary grey in dark mode, [lightAlpha] of the main colour in light mode. */
-    private fun TextView.secondary(lightAlpha: Float) = if (dark) setTextColor(DARK_TEXT_2) else alpha = lightAlpha
+    private fun TextView.secondary(lightAlpha: Float) = if (dark) setTextColor(text2()) else alpha = lightAlpha
 
     /** A name that stays inside its box: it scrolls slowly while its tile is selected if it is too wide (see FittingLabel). */
     private fun fittingLabel(text: String, size: Float) = FittingLabel(this).apply {

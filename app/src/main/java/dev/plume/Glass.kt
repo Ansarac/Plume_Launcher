@@ -151,3 +151,86 @@ internal class GlassLayer(context: Context) : View(context) {
         if (SystemClock.uptimeMillis() < until) postInvalidateOnAnimation()
     }
 }
+
+/** Where a view at ([x], [y]) on a [screenW]x[screenH] screen finds itself in the blurred wallpaper: scale x, scale y, shift x, shift y. */
+internal fun glassMapping(screenW: Int, screenH: Int, x: Int, y: Int) =
+    floatArrayOf(screenW.toFloat() / GLASS_W, screenH.toFloat() / GLASS_H, -x.toFloat(), -y.toFloat())
+
+/**
+ * The look of a frosted surface: the blurred wallpaper that is under the [host] view, at the host's own place, then a
+ * tint (dark or white), a hairline rim and a little light on the top edge. The blur is the one the tiles use, so
+ * nothing is blurred again, and what is behind the surface (tiles, cards) does not show through the text.
+ * [round] is the corner radius, [flatRight]: the right corners run off the screen (a panel along the right edge).
+ * Until there is a blur (a card opened at start), the tint is solid.
+ */
+internal class GlassDrawable(private val host: View) : android.graphics.drawable.Drawable() {
+    // Dithered: a dark blur and a faint gradient have only a few levels, which show as bands on a big surface. A menu
+    // or a panel is drawn once and then sits still, so the dither costs nothing that shows (the tiles of the row differ).
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
+    private val tintPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG)
+    private val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1f }
+    private val matrix = Matrix()
+    private val rect = RectF()
+    private val at = IntArray(2)
+    private var shader: BitmapShader? = null
+    private var gloss: android.graphics.LinearGradient? = null
+    var round = 0f
+    var flatRight = false
+    var wash = 0
+    var rim = 0
+    var highlight = 0 // white at the top edge, fading out: the light of the glass
+
+    /** The blur to paint, or null for a plain solid [wash] (a plain background has nothing to blur). */
+    fun setBlur(b: Bitmap?) {
+        shader = b?.let { BitmapShader(it, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP) }
+        invalidateSelf()
+        host.invalidate()
+    }
+
+    override fun onBoundsChange(r: Rect) {
+        gloss = android.graphics.LinearGradient(0f, 0f, 0f, minOf(r.height().toFloat(), 120f * host.resources.displayMetrics.density), highlight, 0, Shader.TileMode.CLAMP)
+    }
+
+    override fun draw(c: Canvas) {
+        rect.set(bounds.left.toFloat(), bounds.top.toFloat(), bounds.right.toFloat(), bounds.bottom.toFloat())
+        if (flatRight) rect.right += round
+        shader?.let { s ->
+            host.getLocationOnScreen(at)
+            val m = glassMapping(host.resources.displayMetrics.widthPixels, host.resources.displayMetrics.heightPixels, at[0] + bounds.left, at[1] + bounds.top)
+            matrix.setScale(m[0], m[1])
+            matrix.postTranslate(m[2], m[3])
+            s.setLocalMatrix(matrix)
+            paint.shader = s
+            c.drawRoundRect(rect, round, round, paint)
+        }
+        tintPaint.color = if (shader == null) wash or (0xFF shl 24) else wash
+        c.drawRoundRect(rect, round, round, tintPaint)
+        if (highlight != 0 && shader != null) {
+            tintPaint.shader = gloss
+            c.drawRoundRect(rect, round, round, tintPaint)
+            tintPaint.shader = null
+        }
+        rimPaint.color = rim
+        rect.inset(0.5f, 0.5f)
+        c.drawRoundRect(rect, round, round, rimPaint)
+    }
+
+    override fun setAlpha(alpha: Int) {}
+    override fun setColorFilter(cf: android.graphics.ColorFilter?) {}
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun getOpacity() = android.graphics.PixelFormat.TRANSLUCENT
+}
+
+/** A menu, a card or a panel in frosted glass (see [GlassDrawable]), with the children on top. */
+internal class GlassBox @JvmOverloads constructor(context: Context, attrs: android.util.AttributeSet? = null) : android.widget.LinearLayout(context, attrs) {
+    val glass = GlassDrawable(this)
+
+    init {
+        setWillNotDraw(false)
+    }
+
+    override fun onDraw(c: Canvas) {
+        glass.setBounds(0, 0, width, height)
+        glass.draw(c)
+    }
+}
