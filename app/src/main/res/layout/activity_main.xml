@@ -81,6 +81,17 @@
                 android:src="@drawable/ic_wifi" />
 
             <ImageView
+                android:id="@+id/sourcesButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:contentDescription="@string/sources"
+                android:focusable="true"
+                android:padding="8dp"
+                android:src="@drawable/ic_sources"
+                android:visibility="gone" />
+
+            <ImageView
                 android:id="@+id/allAppsButton"
                 android:layout_width="36dp"
                 android:layout_height="36dp"
