@@ -8,14 +8,13 @@ Plume is a minimal home screen for Android TV and Google TV. Every change is wei
 
 - **Small and light.** A 0.4 MB APK, about 50–70 MB of RAM, no third-party libraries, no extra background services.
 - **Simple home screen.** One calm screen with your apps and what you watch. Nothing competes for attention.
-- **Yours, not ours.** No ads, no sponsored or recommended content, no analytics, no account.
+- **Yours, not ours.** No ads, no sponsored content, no analytics, no account.
 - **Quiet on the network.** Plume only goes online for the things listed under [Privacy](README.md#privacy). Anything new that connects to the internet must be optional and off until the user turns it on.
 
 ## What's out of scope
 
 These will be declined, however well they're built:
 
-- Recommendation, trending or "discover" rows, and anything else that fills the home screen with content the user didn't ask for
 - Ads, analytics, crash reporting services, or accounts
 - New third-party libraries or SDKs (AndroidX included)
 - Services, workers or alarms that run while Plume isn't on screen
