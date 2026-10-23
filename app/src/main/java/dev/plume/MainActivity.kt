@@ -234,10 +234,18 @@ class MainActivity : Activity() {
     private lateinit var allAppsGrid: GridLayout
     private lateinit var wifi: ImageView
 
+    private var resumed = false
+    private val refreshIfDirty = Runnable { if (appsDirty && !editing) refreshApps() } // not while a tile is being moved: onResume catches up
+
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
             appsDirty = true
             i.data?.schemeSpecificPart?.let { GLYPHS.remove(it); ACCENTS.remove(it) } // an update may bring a new icon
+            // The system can tell us after we are back in front, for example after an uninstall: onResume has run already.
+            if (resumed) {
+                ui.removeCallbacks(refreshIfDirty)
+                ui.postDelayed(refreshIfDirty, 300L)
+            }
         }
     }
 
@@ -317,6 +325,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        resumed = true
         ensureHomeService()
         homeSetupResumed()
         if (wantDark() != dark) {
@@ -363,6 +372,8 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        resumed = false
+        ui.removeCallbacks(refreshIfDirty)
         ui.removeCallbacks(weatherTick)
         ui.removeCallbacks(themeTick)
         ui.removeCallbacks(wallpaperTick)
@@ -1896,7 +1907,25 @@ class MainActivity : Activity() {
             if (pkg.startsWith(HDMI)) null else getString(R.string.app_info) to {
                 openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", pkg, null))
             },
+            if (canUninstall(pkg)) getString(R.string.uninstall) to { uninstall(pkg) } else null,
         ))
+    }
+
+    /** Apps the user installed, and system apps that have an update on top. Never Plume or an HDMI tile. */
+    private fun canUninstall(pkg: String): Boolean {
+        if (pkg == packageName || pkg.startsWith(HDMI)) return false
+        return try {
+            val flags = packageManager.getApplicationInfo(pkg, 0).flags
+            flags and ApplicationInfo.FLAG_SYSTEM == 0 || flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0
+        } catch (_: Exception) { false }
+    }
+
+    private fun uninstall(pkg: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", pkg, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) {
+            Toast.makeText(this, getString(R.string.cant_uninstall), Toast.LENGTH_SHORT).show()
+        }
     }
 
     /** Hold OK on a Continue Watching card: hide the show, or open its app rather than the episode. */

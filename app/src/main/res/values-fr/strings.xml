@@ -95,6 +95,8 @@
     <string name="remove_from_row">Retirer de la ligne</string>
     <string name="removed_from_row">Retirée de la ligne. Elle reste dans Toutes les applis.</string>
     <string name="app_info">Infos sur l\'appli</string>
+    <string name="uninstall">Désinstaller</string>
+    <string name="cant_uninstall">Impossible de désinstaller cette appli</string>
     <string name="remove_from_cw">Retirer de Reprendre la lecture</string>
     <string name="open_app">Ouvrir l\'appli</string>
     <string name="moving_hint">Déplacement :  ◀ ▶ déplacer  ·  OK placer</string>
