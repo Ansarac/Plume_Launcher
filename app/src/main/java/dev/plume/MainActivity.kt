@@ -776,14 +776,22 @@ class MainActivity : Activity() {
             } catch (e: OutOfMemoryError) { // a picture on a TV short of memory: show the default instead of crashing
                 null
             } ?: decodeWallpaper(fallback)
+            // Nothing reads the pixels from here on: keep the picture in graphics memory only, not once more in the process.
+            val shown = bmp?.let { b ->
+                try {
+                    b.copy(Bitmap.Config.HARDWARE, false)?.also { b.recycle() } ?: b
+                } catch (e: Exception) {
+                    b
+                }
+            }
             ui.post {
                 val old = view.drawable
-                if (old == null || bmp == null) return@post view.setImageBitmap(bmp)
+                if (old == null || shown == null) return@post view.setImageBitmap(shown)
                 // Soft change from one photo to the next; then drop the old one so only one stays in memory.
-                val fade = TransitionDrawable(arrayOf(old, BitmapDrawable(resources, bmp))).apply { isCrossFadeEnabled = true }
+                val fade = TransitionDrawable(arrayOf(old, BitmapDrawable(resources, shown))).apply { isCrossFadeEnabled = true }
                 view.setImageDrawable(fade)
                 fade.startTransition(800)
-                ui.postDelayed({ if (view.drawable === fade) view.setImageBitmap(bmp) }, 900)
+                ui.postDelayed({ if (view.drawable === fade) view.setImageBitmap(shown) }, 900)
             }
         }
     }
