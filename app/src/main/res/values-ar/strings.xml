@@ -187,4 +187,10 @@
     <string name="section_screensaver">شاشة التوقف</string>
     <string name="section_home">زر الرئيسية</string>
     <string name="bing_daily">صورة اليوم من Bing</string>
+    <string name="sources">المصادر</string>
+    <string name="no_signal">لا توجد إشارة</string>
+    <string name="in_row">في الصف</string>
+    <string name="input_added">أُضيف إلى الصف.</string>
+    <string name="input_removed">أُزيل من الصف.</string>
+    <string name="sources_hint">اضغط مطوّلًا على OK لتثبيت مدخل في الصف.</string>
 </resources>

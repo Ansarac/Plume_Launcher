@@ -16,6 +16,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- A new **Sources** icon in the top bar opens the list of the TV inputs. Select an input to switch to it. A device that names itself over HDMI, like a PS5, shows with its logo. A port with no signal says so. Hold OK on an input to put it in the row or take it out. Inputs that were in the row before the update stay there.
 - A long app name no longer runs past its tile. It scrolls slowly while the app is selected.
 - **Plume settings → App row → Icon style** has a new choice, **Banner**. Each app shows its own picture, as on Apple TV. An app with no banner gets its own colour behind a white mark. Monochrome stays the default.
 
