@@ -21,10 +21,7 @@ class HdmiInputsTest {
     }
 
     @Test fun row() {
-        val none = emptySet<String>()
-        assertTrue(inRow("hdmi:2", offline = false, none, none))
-        assertFalse(inRow("hdmi:2", offline = true, none, none))
-        assertTrue(inRow("hdmi:2", offline = true, none, setOf("hdmi:2")))
-        assertFalse(inRow("hdmi:2", offline = false, setOf("hdmi:2"), setOf("hdmi:2")))
+        assertTrue(inRow("com.app", emptySet()))
+        assertFalse(inRow("com.app", setOf("com.app")))
     }
 }
