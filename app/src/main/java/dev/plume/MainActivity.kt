@@ -235,7 +235,7 @@ class MainActivity : Activity() {
     private lateinit var wifi: ImageView
 
     private var resumed = false
-    private val refreshIfDirty = Runnable { if (appsDirty) refreshApps() }
+    private val refreshIfDirty = Runnable { if (appsDirty && !editing) refreshApps() } // not while a tile is being moved: onResume catches up
 
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
