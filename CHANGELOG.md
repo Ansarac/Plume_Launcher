@@ -16,16 +16,30 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
-- If you set a PIN, Plume asks for it before it opens Wi-Fi or Android settings from the top bar.
-- **Android 8:** Plume opens on Android 8.0 and 8.1. Before, it closed immediately after it opened.
-- When you move quickly along the app row, Plume shows an app's name only when you reach that app.
-- In **All apps**, the tile in the first or last column is no longer cut off when you select it.
-- The dark tiles and the wallpaper fade are smooth. Their gradients no longer show as bands.
-- Continue Watching shows what you are watching before the next-episode suggestions. Some apps give the time in seconds. Plume now reads it correctly.
-- The tiles are see-through. The wallpaper shows through them. Menus and dialogs stay solid.
-- A new **Sources** icon in the top bar opens the list of the TV inputs. Select an input to switch to it. A device that names itself over HDMI, like a PS5, shows with its logo. A port with no signal says so. Hold OK on an input to put it in the apps row. Inputs are not tiles in the row or in **All apps** until you put them there.
-- You can use the Bing picture of the day as the wallpaper. Select **Plume settings → Appearance → Light mode wallpaper** or **Dark mode wallpaper**, then select **Bing picture of the day**. Plume asks Bing when the home screen opens, and stops for the day when the picture has changed. Plume keeps one picture. In dark mode, Plume makes the picture darker.
+- A new **Sources** icon in the top bar opens the list of the TV inputs. Select an input to switch to it. A device that names itself over HDMI, like a PS5, shows with its logo. A port with no signal says so. Hold OK on an input to put it in the row or take it out. Inputs that were in the row before the update stay there.
+- A long app name no longer runs past its tile. It scrolls slowly while the app is selected.
+
+## 1.5
+
+### New
+- **Pick your bottom row.** Show any channel from your apps, such as a Stremio library. Select **Plume settings → Bottom row → Channels**. The row takes the channel's name, or a name you set in **Row name**.
+- **Bing wallpaper.** Use the Bing picture of the day as your wallpaper. Select **Plume settings → Appearance → Light mode wallpaper** or **Dark mode wallpaper**, then select **Bing picture of the day**.
+- **New languages.** Plume is now available in English, French, Turkish and Arabic. It uses the language of your TV.
+- **PIN for Wi-Fi and Android settings.** If you set a PIN, Plume asks for it before it opens Wi-Fi or Android settings from the top bar.
+
+### Design
+- **See-through tiles.** The wallpaper shows through the tiles. Menus and dialogs stay solid.
+- **Smooth gradients.** The dark tiles and the wallpaper fade no longer show bands.
+- **Smoother scrolling.** The app row moves more smoothly.
+
+### Easier to use
+- **Continue Watching order.** What you are watching comes before the next-episode suggestions. Plume also reads the time correctly from apps that give it in seconds.
+- **App names.** When you move quickly along the app row, Plume shows an app's name only when you reach that app.
+
+### Fixes
+- Plume opens on Android 8.0 and 8.1. Before, it closed immediately after it opened.
 - If your wallpaper is too big for the memory of your TV, Plume shows the default wallpaper. Before, Plume closed.
+- In **All apps**, the tile in the first or last column is no longer cut off when you select it.
 
 ## 1.4
 

@@ -169,7 +169,7 @@
                     android:orientation="horizontal" />
 
                 <!-- Name of the focused app, slid under its tile (tvOS style). In the scroll content, so it scrolls along. -->
-                <TextView
+                <dev.plume.FittingLabel
                     android:id="@+id/rowLabel"
                     android:layout_width="200dp"
                     android:layout_height="20dp"
