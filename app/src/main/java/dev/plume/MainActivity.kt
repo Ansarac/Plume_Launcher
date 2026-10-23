@@ -363,7 +363,7 @@ class MainActivity : Activity() {
     override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, results: IntArray) {
         if (code != MEDIA_REQUEST) return refreshWatchNext()
         if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED) afterPhotoAccess?.invoke()
-        else Toast.makeText(this, getString(R.string.photos_permission), Toast.LENGTH_LONG).show()
+        else toast(getString(R.string.photos_permission), long = true)
     }
 
     @Deprecated("Only used for the default-home role request")
@@ -442,7 +442,7 @@ class MainActivity : Activity() {
                 on.split(':').filter { ComponentName.unflattenFromString(it) != me }.joinToString(":"))
         }
         if (homeServiceOn()) {
-            Toast.makeText(this, getString(R.string.home_off_hint), Toast.LENGTH_LONG).show()
+            toast(getString(R.string.home_off_hint), long = true)
             openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS)
         }
         renderSettings(R.string.home_button)
@@ -455,7 +455,7 @@ class MainActivity : Activity() {
         if (homeServiceOn()) return renderSettings(R.string.home_button)
         // The written path is the safety net: some Google TVs (a Xiaomi stick) answer the Accessibility link
         // with "You don't have an app that can do this", which we can't detect from here.
-        Toast.makeText(this, getString(R.string.home_on_hint), Toast.LENGTH_LONG).show()
+        toast(getString(R.string.home_on_hint), long = true)
         openHomeServiceSettings()
     }
 
@@ -779,6 +779,39 @@ class MainActivity : Activity() {
         glassSurfaces.add(java.lang.ref.WeakReference(g))
     }
 
+    private var noteView: View? = null
+    private var noteHide: Runnable? = null
+
+    /**
+     * A short message at the bottom of the screen. With Glass it is a frosted pill, which fades in and out;
+     * otherwise it is the system's toast.
+     */
+    private fun toast(text: CharSequence, long: Boolean = false) {
+        if (!frosted()) return Toast.makeText(this, text, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+        val root = findViewById<FrameLayout>(R.id.root)
+        noteHide?.let { ui.removeCallbacks(it) }
+        noteView?.let { root.removeView(it) }
+        val pill = glassSurface(dp(24).toFloat()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(26), dp(13), dp(26), dp(13))
+            alpha = 0f
+            translationY = dp(14).toFloat()
+            addView(label(text.toString(), 15f).apply {
+                maxLines = 3
+                ellipsize = null
+                maxWidth = dp(640)
+            })
+        }
+        root.addView(pill, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(34) })
+        noteView = pill
+        pill.animate().alpha(1f).translationY(0f).setDuration(200).setInterpolator(DECELERATE).start()
+        noteHide = Runnable {
+            pill.animate().alpha(0f).translationY(dp(8).toFloat()).setDuration(220).withEndAction { root.removeView(pill) }.start()
+        }.also { ui.postDelayed(it, if (long) 3500L else 2000L) }
+    }
+
     /** Supporting text in dark mode: dim grey on black, lighter on glass, where it sits over a photo. */
     private fun text2() = if (frosted()) 0xFFCCCCCC.toInt() else DARK_TEXT_2
 
@@ -1022,7 +1055,7 @@ class MainActivity : Activity() {
         }
         val folders = photoFolders()
         if (folders.isEmpty()) {
-            return Toast.makeText(this, getString(R.string.no_photos), Toast.LENGTH_LONG).show()
+            return toast(getString(R.string.no_photos), long = true)
         }
         val rows = folders.map { (id, name, n) ->
             page(name, resources.getQuantityString(R.plurals.photo_count, n, n)) { onPick("folder:$id:$name") }
@@ -1057,7 +1090,7 @@ class MainActivity : Activity() {
      * wallpaper and show it at once. The server runs only while this panel is open.
      */
     private fun uploadWallpaper(forDark: Boolean) {
-        val ip = lanAddress() ?: return Toast.makeText(this, getString(R.string.connect_network), Toast.LENGTH_LONG).show()
+        val ip = lanAddress() ?: return toast(getString(R.string.connect_network), long = true)
         val dir = wallpaperDir() ?: return
         val status = label(getString(R.string.waiting_photo), 14f).apply { gravity = Gravity.CENTER; maxLines = 2 }
         val server = try {
@@ -1070,7 +1103,7 @@ class MainActivity : Activity() {
                 saved.nameWithoutExtension
             }
         } catch (e: IOException) {
-            return Toast.makeText(this, getString(R.string.upload_failed), Toast.LENGTH_LONG).show()
+            return toast(getString(R.string.upload_failed), long = true)
         }
         upload = server
         val url = "http://$ip:${server.port}/${server.code}"
@@ -1391,14 +1424,14 @@ class MainActivity : Activity() {
     private fun setLock(): Unit = pinPage(getString(R.string.choose_pin), { renderSettings(R.string.lock_layout) }) { first ->
         pinPage(getString(R.string.enter_again), { renderSettings(R.string.lock_layout) }) { again ->
             if (again != first) {
-                Toast.makeText(this, getString(R.string.pins_mismatch), Toast.LENGTH_LONG).show()
+                toast(getString(R.string.pins_mismatch), long = true)
                 setLock()
                 return@pinPage null
             }
             prefs.edit().putString("lock_pin", hashPin(first)).apply()
             unlockedUntil = SystemClock.elapsedRealtime() + UNLOCKED_MS // no PIN straight away for the one who set it
             renderSettings(R.string.lock_layout)
-            Toast.makeText(this, getString(R.string.layout_locked), Toast.LENGTH_LONG).show()
+            toast(getString(R.string.layout_locked), long = true)
             null
         }
         null
@@ -1715,7 +1748,7 @@ class MainActivity : Activity() {
         if (takeFocus) (tiles.firstOrNull { it.tag == focusedTag } ?: tiles[0]).requestFocus()
         if (!prefs.getBoolean("tip_move", false)) {
             prefs.edit().putBoolean("tip_move", true).apply()
-            Toast.makeText(this, getString(R.string.tip_move), Toast.LENGTH_LONG).show()
+            toast(getString(R.string.tip_move), long = true)
         }
     }
 
@@ -2040,7 +2073,7 @@ class MainActivity : Activity() {
                 else prefs.edit().putStringSet("row_hidden", rowHiddenSet() + pkg).apply()
                 renderApps()
                 appRow.getChildAt(minOf(i, appRow.childCount - 1))?.requestFocus()
-                Toast.makeText(this, getString(R.string.removed_from_row), Toast.LENGTH_SHORT).show()
+                toast(getString(R.string.removed_from_row))
             },
             if (pkg.startsWith(HDMI)) null else getString(R.string.app_info) to {
                 openSettings(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", pkg, null))
@@ -2325,7 +2358,7 @@ class MainActivity : Activity() {
         if (galleryOn()) return
         if (checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED) {
             // Without the adb permission Plume can't switch it itself; Android's own list has getString(R.string.gallery).
-            Toast.makeText(this, getString(R.string.choose_gallery_hint), Toast.LENGTH_LONG).show()
+            toast(getString(R.string.choose_gallery_hint), long = true)
             return openScreensaverSettings()
         }
         prefs.edit().putString("prev_screensaver", currentScreensaver()).apply()
@@ -2360,7 +2393,7 @@ class MainActivity : Activity() {
     private fun downloadPaintings(then: () -> Unit) {
         if (downloading) return
         downloading = true
-        Toast.makeText(this, getString(R.string.downloading_paintings, PAINTINGS_MB), Toast.LENGTH_SHORT).show()
+        toast(getString(R.string.downloading_paintings, PAINTINGS_MB))
         Thread {
             val part = File(filesDir, "paintings.part").apply { deleteRecursively(); mkdirs() }
             val ok = try {
@@ -2376,7 +2409,7 @@ class MainActivity : Activity() {
             }
             ui.post {
                 downloading = false
-                if (ok) then() else Toast.makeText(this, getString(R.string.paintings_failed), Toast.LENGTH_LONG).show()
+                if (ok) then() else toast(getString(R.string.paintings_failed), long = true)
                 if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.screensaver)
             }
         }.start()
@@ -2387,7 +2420,7 @@ class MainActivity : Activity() {
         try {
             startActivity(Intent(Intent.ACTION_MAIN).setClassName("com.android.systemui", "com.android.systemui.Somnambulator"))
         } catch (e: Exception) {
-            Toast.makeText(this, getString(R.string.cant_dream), Toast.LENGTH_SHORT).show()
+            toast(getString(R.string.cant_dream))
         }
     }
 
@@ -2420,9 +2453,9 @@ class MainActivity : Activity() {
                 val ver = availableUpdate()
                 if (ver != null && (force || prefs.getString("upd_told", null) != ver)) {
                     prefs.edit().putString("upd_told", ver).apply()
-                    if (!force) Toast.makeText(this, getString(R.string.update_available_toast, ver), Toast.LENGTH_LONG).show()
+                    if (!force) toast(getString(R.string.update_available_toast, ver), long = true)
                 } else if (force) {
-                    Toast.makeText(this, if (latest == null) getString(R.string.update_check_failed) else getString(R.string.up_to_date_toast), Toast.LENGTH_SHORT).show()
+                    toast(if (latest == null) getString(R.string.update_check_failed) else getString(R.string.up_to_date_toast))
                 }
                 updateBadge()
                 if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.updates)
@@ -2476,7 +2509,7 @@ class MainActivity : Activity() {
     private fun installUpdate(ver: String) {
         if (updating) return
         if (!packageManager.canRequestPackageInstalls()) {
-            Toast.makeText(this, getString(R.string.allow_installs), Toast.LENGTH_LONG).show()
+            toast(getString(R.string.allow_installs), long = true)
             return openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
         }
         updating = true
@@ -2514,7 +2547,7 @@ class MainActivity : Activity() {
             ui.post {
                 if (!ok) {
                     updating = false
-                    Toast.makeText(this, getString(R.string.update_download_failed), Toast.LENGTH_LONG).show()
+                    toast(getString(R.string.update_download_failed), long = true)
                 }
                 if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.updates)
             }
@@ -2534,7 +2567,7 @@ class MainActivity : Activity() {
             val why = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
             android.util.Log.w("Plume", "update install failed: $status $why")
             if (status != PackageInstaller.STATUS_FAILURE_ABORTED) {
-                Toast.makeText(this, getString(R.string.update_install_failed), Toast.LENGTH_LONG).show()
+                toast(getString(R.string.update_install_failed), long = true)
             }
         }
         if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.updates)
@@ -2759,7 +2792,7 @@ class MainActivity : Activity() {
     private fun pickWatchSources() {
         val sources = watchSources()
         if (sources.isEmpty()) {
-            Toast.makeText(this, getString(R.string.no_cw_apps), Toast.LENGTH_SHORT).show()
+            toast(getString(R.string.no_cw_apps))
             return
         }
         toggles(getString(R.string.cw_apps), sources.map { it.label to it.pkg }, "cw_off", getString(R.string.on), getString(R.string.off)) {
@@ -2866,7 +2899,7 @@ class MainActivity : Activity() {
     private fun hideWatch(p: Prog) {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!! + hideKey(p.pkg, p.title)
         prefs.edit().putStringSet("hidden_watch", hidden).apply()
-        Toast.makeText(this, getString(R.string.hidden_from_cw), Toast.LENGTH_SHORT).show()
+        toast(getString(R.string.hidden_from_cw))
         refreshWatchNext()
     }
 
