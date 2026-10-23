@@ -95,6 +95,15 @@ internal class FittingLabel @JvmOverloads constructor(context: Context, attrs: A
         restart()
     }
 
+    /** Opening an app hides the window but leaves the view attached: the animation must not run for nobody. */
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (visibility == View.VISIBLE) restart() else {
+            animator?.cancel()
+            animator = null
+        }
+    }
+
     override fun onDetachedFromWindow() {
         animator?.cancel()
         animator = null
