@@ -96,6 +96,8 @@
     <string name="remove_from_row">Retirer de la ligne</string>
     <string name="removed_from_row">Retirée de la ligne. Elle reste dans Toutes les applis.</string>
     <string name="app_info">Infos sur l\'appli</string>
+    <string name="uninstall">Désinstaller</string>
+    <string name="cant_uninstall">Impossible de désinstaller cette appli</string>
     <string name="remove_from_cw">Retirer de Reprendre la lecture</string>
     <string name="open_app">Ouvrir l\'appli</string>
     <string name="moving_hint">Déplacement :  ◀ ▶ déplacer  ·  OK placer</string>
@@ -191,4 +193,32 @@
     <string name="input_removed">Retirée de la ligne.</string>
     <string name="sources_hint">Maintenez OK pour épingler une entrée à la ligne.</string>
     <string name="bing_daily">Image Bing du jour</string>
+    <!-- Remote keys: change what a button on the remote does -->
+    <string name="section_keys">Touches de la télécommande</string>
+    <string name="key_add">Ajouter une touche</string>
+    <string name="key_press_prompt">Appuyez sur la touche à changer sur votre télécommande. Retour, OK et les flèches ne peuvent pas être changés. Une touche réglée ici ne fait plus son travail habituel.</string>
+    <string name="key_short">Appui</string>
+    <string name="key_long">Appui long</string>
+    <string name="key_unset">Non réglée</string>
+    <string name="key_block">Ne rien faire</string>
+    <string name="key_open_app">Ouvrir une appli ou une entrée…</string>
+    <string name="key_remove">Retirer cette touche</string>
+    <string name="key_number">Touche %1$d</string>
+    <string name="act_play_pause">Lecture / Pause</string>
+    <string name="act_next">Suivant</string>
+    <string name="act_previous">Précédent</string>
+    <string name="act_stop">Arrêt</string>
+    <string name="act_rewind">Retour rapide</string>
+    <string name="act_forward">Avance rapide</string>
+    <string name="act_back">Retour</string>
+    <string name="act_recents">Applis récentes</string>
+    <string name="act_notifications">Notifications</string>
+    <string name="act_quick">Réglages rapides</string>
+    <string name="act_power">Menu d\'alimentation</string>
+    <string name="act_settings">Paramètres Android</string>
+    <string name="act_network">Paramètres réseau</string>
+    <plurals name="n_keys">
+        <item quantity="one">%d touche</item>
+        <item quantity="other">%d touches</item>
+    </plurals>
 </resources>

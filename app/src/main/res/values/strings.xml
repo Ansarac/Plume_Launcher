@@ -102,6 +102,8 @@
     <string name="remove_from_row">Remove from row</string>
     <string name="removed_from_row">Removed from the row. It\'s still in All apps.</string>
     <string name="app_info">App info</string>
+    <string name="uninstall">Uninstall</string>
+    <string name="cant_uninstall">Cannot uninstall this app</string>
     <string name="remove_from_cw">Remove from Continue Watching</string>
     <string name="open_app">Open app</string>
     <string name="moving_hint">Moving:  ◀ ▶ move  ·  OK place</string>
@@ -196,4 +198,32 @@
     <string name="input_removed">Removed from the row.</string>
     <string name="sources_hint">Hold OK to pin an input to the row.</string>
     <string name="bing_daily">Bing picture of the day</string>
+    <!-- Remote keys: change what a button on the remote does -->
+    <string name="section_keys">Remote keys</string>
+    <string name="key_add">Add a key</string>
+    <string name="key_press_prompt">Press the key to change on your remote. Back, OK and the arrows can\'t be changed. A key set here stops doing its usual job.</string>
+    <string name="key_short">Press</string>
+    <string name="key_long">Hold</string>
+    <string name="key_unset">Not set</string>
+    <string name="key_block">Do nothing</string>
+    <string name="key_open_app">Open an app or input…</string>
+    <string name="key_remove">Remove this key</string>
+    <string name="key_number">Key %1$d</string>
+    <string name="act_play_pause">Play / Pause</string>
+    <string name="act_next">Next</string>
+    <string name="act_previous">Previous</string>
+    <string name="act_stop">Stop</string>
+    <string name="act_rewind">Rewind</string>
+    <string name="act_forward">Fast-forward</string>
+    <string name="act_back">Back</string>
+    <string name="act_recents">Recent apps</string>
+    <string name="act_notifications">Notifications</string>
+    <string name="act_quick">Quick settings</string>
+    <string name="act_power">Power menu</string>
+    <string name="act_settings">Android settings</string>
+    <string name="act_network">Network settings</string>
+    <plurals name="n_keys">
+        <item quantity="one">%d key</item>
+        <item quantity="other">%d keys</item>
+    </plurals>
 </resources>
