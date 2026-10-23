@@ -188,7 +188,9 @@ class MainActivity : Activity() {
 
     /** [offline]: an HDMI port with no signal right now (see inRow). */
     private class App(val pkg: String, val label: String, val launch: Intent, val icon: Drawable, val offline: Boolean = false)
-    private class Prog(val title: String, val sub: String, val progress: Int, val image: String?, val intent: String?, val pkg: String?)
+    /** [group]: what shares the front places in Continue Watching, the app or, for an app channel, that channel. */
+    private class Prog(val title: String, val sub: String, val progress: Int, val image: String?, val intent: String?, val pkg: String?,
+                       val group: String? = pkg)
 
     private val prefs by lazy { getSharedPreferences("home", MODE_PRIVATE) }
     private val io = Executors.newSingleThreadExecutor()
@@ -1031,7 +1033,7 @@ class MainActivity : Activity() {
         val cwOff = prefs.getStringSet("cw_off", emptySet())!!.count { pkg -> apps.any { it.pkg == pkg } } // uninstalled ones don't count
         val rowHidden = rowHiddenSet().count { pkg -> apps.any { it.pkg == pkg } }
         val chFlip = prefs.getStringSet("ch_flip", emptySet())!!
-        val channelsOn = appChannels().distinctBy { (_, p, n) -> channelKey(p, n) }.count { (_, p, n) -> channelOn(n, channelKey(p, n), chFlip) }
+        val channelsOn = (if (WATCH_NEXT in chFlip) 0 else 1) + appChannels().distinctBy { (_, p, n) -> channelKey(p, n) }.count { (_, p, n) -> channelOn(n, channelKey(p, n), chFlip) }
         val names = rowNames()
         val colour = colourIcons()
         // Rows with more than two values also step back with Left; two-value rows flip either way.
@@ -1089,6 +1091,7 @@ class MainActivity : Activity() {
             },
             R.string.cw_apps to Triple(getString(R.string.cw_apps), if (cwOff == 0) getString(R.string.all_on) else getString(R.string.n_off, cwOff)) { pickWatchSources() },
             R.string.cw_channels to Triple(getString(R.string.cw_channels), getString(R.string.n_on, channelsOn)) { pickChannels() },
+            R.string.row_name to Triple(getString(R.string.row_name), rowName()) { pickRowName() },
             // "weather" is off/c/f as before; "wx_unit" keeps the unit while it's off.
             R.string.weather to Triple(getString(R.string.weather), toggle(weather != "off")) {
                 if (weather == "off") prefs.edit().putString("weather", unit).apply()
@@ -1135,7 +1138,7 @@ class MainActivity : Activity() {
                 listOf(R.string.theme, R.string.light_wallpaper, R.string.dark_wallpaper, R.string.photo_fade, R.string.folder_photo_changes)),
             Triple(R.string.section_app_row, "${rows[R.string.apps_in_row]!!.second} · ${rows[R.string.row_position]!!.second}",
                 listOf(R.string.edit_apps_row, R.string.sort_apps, R.string.apps_in_row, R.string.row_position, R.string.app_names, R.string.icon_style)),
-            Triple(R.string.continue_watching, rows[R.string.cw_apps]!!.second, listOf(R.string.cw_apps, R.string.cw_channels, R.string.restore_hidden)),
+            Triple(R.string.bottom_row, rowName(), listOf(R.string.row_name, R.string.cw_channels, R.string.cw_apps, R.string.restore_hidden)),
             Triple(R.string.section_weather, if (weather == "off") on(false) else "${rows[R.string.weather_units]!!.second} · ${rows[R.string.weather_location]!!.second}",
                 listOf(R.string.weather, R.string.weather_units, R.string.weather_location)),
             Triple(R.string.section_screensaver, rows[R.string.screensaver]!!.second, listOf(R.string.screensaver, R.string.test_screensaver, R.string.screensaver_timing)),
@@ -2333,34 +2336,42 @@ class MainActivity : Activity() {
     // An IP's location is wherever the provider routes it, sometimes a whole region off (Rome showing as
     // Sicily), so you can pick the city instead. Open-Meteo's geocoding, also free and keyless.
 
+    /** A one-line text box for the top of a settings page, inside its own holder; [done] gets the trimmed text. */
+    private fun textField(text: String, hint: String, flags: Int, ime: Int, done: (String) -> Unit): EditText {
+        val field = EditText(this).apply {
+            id = View.generateViewId()
+            setText(text)
+            setSelection(text.length)
+            this.hint = hint
+            textSize = 14f
+            setTextColor(fg)
+            setHintTextColor(Color.argb(120, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            isSingleLine = true
+            inputType = InputType.TYPE_CLASS_TEXT or flags
+            imeOptions = ime
+            setPadding(dp(14), 0, dp(14), 0)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(8).toFloat()
+                setStroke(dp(1), Color.argb(80, Color.red(fg), Color.green(fg), Color.blue(fg)))
+            }
+            setOnEditorActionListener { v, _, _ -> done(v.text.toString().trim()); true }
+        }
+        LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(4), 0, 0)
+            addView(field, LinearLayout.LayoutParams(MATCH_PARENT, dp(44)))
+        }
+        return field
+    }
+
     private fun manualCity() = prefs.getBoolean("geo_manual", false)
 
     private class City(val name: String, val where: String, val lat: Float, val lon: Float)
 
     /** Automatic first, then the search box; a search lists what it found under them. */
     private fun pickCity(query: String = "", found: List<City>? = null, status: String = "") {
-        val field = EditText(this).apply {
-            id = View.generateViewId()
-            setText(query)
-            setSelection(query.length)
-            hint = getString(R.string.city_hint)
-            textSize = 14f
-            setTextColor(fg)
-            setHintTextColor(Color.argb(120, Color.red(fg), Color.green(fg), Color.blue(fg)))
-            isSingleLine = true
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-            imeOptions = EditorInfo.IME_ACTION_SEARCH
-            setPadding(dp(14), 0, dp(14), 0)
-            background = GradientDrawable().apply {
-                cornerRadius = dp(8).toFloat()
-                setStroke(dp(1), Color.argb(80, Color.red(fg), Color.green(fg), Color.blue(fg)))
-            }
-            setOnEditorActionListener { v, _, _ -> searchCity(v.text.toString().trim()); true }
-        }
-        val top = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(4), 0, 0)
-            addView(field, LinearLayout.LayoutParams(MATCH_PARENT, dp(44)))
+        val field = textField(query, getString(R.string.city_hint), InputType.TYPE_TEXT_FLAG_CAP_WORDS, EditorInfo.IME_ACTION_SEARCH) { searchCity(it) }
+        val top = (field.parent as LinearLayout).apply {
             if (status.isNotEmpty()) addView(label(status, 12f).apply { alpha = 0.6f; setPadding(dp(14), dp(8), 0, 0) })
         }
         val rows = listOf(page(getString(R.string.automatic_ip), if (manualCity()) "" else CHOSEN) {
@@ -2468,14 +2479,18 @@ class MainActivity : Activity() {
      */
     private fun queryWatchNext(): List<Prog> {
         val hidden = prefs.getStringSet("hidden_watch", emptySet())!!
-        val watchNext = readPrograms(TvContract.WatchNextPrograms.CONTENT_URI, hidden)
-        val channels = continueChannels().flatMap { id ->
-            readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden).map { (_, p) -> watchSortKey(0, prefs.getLong("t_${p.pkg}", 0)) to p }
+        val watchNextOn = WATCH_NEXT !in prefs.getStringSet("ch_flip", emptySet())!!
+        val watchNext = if (watchNextOn) readPrograms(TvContract.WatchNextPrograms.CONTENT_URI, hidden) else emptyList()
+        val on = continueChannels()
+        autoRowName = if (watchNextOn) null
+            else on.map { it.third }.distinct().singleOrNull()?.takeUnless { it.equals("Continue Watching", ignoreCase = true) }
+        val channels = on.flatMap { (id) ->
+            readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden, "ch$id").map { (_, p) -> watchSortKey(0, prefs.getLong("t_${p.pkg}", 0)) to p }
         }
         val all = watchNext + channels
         publishingPkgs = all.mapNotNull { it.second.pkg }.toSet()
         val off = prefs.getStringSet("cw_off", emptySet())!!
-        return newestPerApp(all.filter { it.second.pkg !in off }.distinctBy { it.second.intent ?: it.second.title }, PER_APP) { it.pkg }
+        return newestPerApp(all.filter { it.second.pkg !in off }.distinctBy { it.second.intent ?: it.second.title }, PER_APP) { it.group }
             .take(20)
     }
 
@@ -2528,20 +2543,41 @@ class MainActivity : Activity() {
 
     private fun channelKey(pkg: String, name: String) = "$pkg/$name"
 
-    private fun continueChannels(): List<Long> {
+    private fun continueChannels(): List<Triple<Long, String, String>> {
         val flipped = prefs.getStringSet("ch_flip", emptySet())!!
-        return appChannels().filter { (_, p, n) -> channelOn(n, channelKey(p, n), flipped) }.map { it.first }
+        return appChannels().filter { (_, p, n) -> channelOn(n, channelKey(p, n), flipped) }
     }
 
-    /** Pick which apps' channels fill Continue Watching, by name ("Plex · On Deck"); only ones on this TV now are listed. */
+    /** The one channel on, unless it's a "Continue Watching" one: the bottom row is named after it. */
+    @Volatile private var autoRowName: String? = null
+
+    /** The bottom row's name: the user's own, else the one channel on, else Continue Watching. */
+    private fun rowName() = prefs.getString("row_name", null).orEmpty().ifEmpty { autoRowName ?: getString(R.string.continue_watching) }
+
+    private fun pickRowName() {
+        val field = textField(prefs.getString("row_name", null).orEmpty(), autoRowName ?: getString(R.string.continue_watching),
+            InputType.TYPE_TEXT_FLAG_CAP_WORDS, EditorInfo.IME_ACTION_DONE) { name ->
+            prefs.edit().putString("row_name", name).apply()
+            watchTitle.text = rowName()
+            renderSettings(R.string.row_name)
+        }
+        val auto = page(getString(R.string.automatic), if (prefs.getString("row_name", null).isNullOrEmpty()) CHOSEN else "") {
+            prefs.edit().remove("row_name").apply()
+            watchTitle.text = rowName()
+            renderSettings(R.string.row_name)
+        }
+        // Opens on Automatic, so the keyboard only comes up when you go Up to the box to type.
+        showPage(getString(R.string.row_name), listOf(auto), top = field.parent as View) { renderSettings(R.string.row_name) }
+        settingsList.getChildAt(1).nextFocusUpId = field.id
+    }
+
+    /** Pick what fills the bottom row: Android TV Watch Next and any app channel on this TV now ("Plex · On Deck"). */
     private fun pickChannels() {
         val channels = appChannels().distinctBy { (_, p, n) -> channelKey(p, n) }
-        if (channels.isEmpty()) {
-            Toast.makeText(this, getString(R.string.no_channels), Toast.LENGTH_SHORT).show()
-            return
-        }
         val label = apps.associate { it.pkg to it.label }
-        val items = channels.map { (_, p, n) -> "${label[p] ?: p} · $n" to channelKey(p, n) }.sortedBy { it.first.lowercase() }
+        fun app(p: String) = label[p] ?: try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(p, 0)).toString() } catch (e: PackageManager.NameNotFoundException) { p }
+        val items = listOf(getString(R.string.watch_next) to WATCH_NEXT) +
+            channels.map { (_, p, n) -> (if (n == app(p)) n else "${app(p)} · $n") to channelKey(p, n) }.sortedBy { it.first.lowercase() }
         val startsOff = channels.filter { (_, p, n) -> !channelOn(n, channelKey(p, n), emptySet()) }.map { (_, p, n) -> channelKey(p, n) }.toSet()
         toggles(getString(R.string.cw_channels), items, "ch_flip", getString(R.string.on), getString(R.string.off), startsOff = startsOff) {
             watchKey = null
@@ -2551,7 +2587,7 @@ class MainActivity : Activity() {
     }
 
     /** Pairs of (sort key, item), see [watchSortKey]; channel rows have no time of their own and get the type "continue". */
-    private fun readPrograms(uri: Uri, hidden: Set<String>): List<Pair<Long, Prog>> {
+    private fun readPrograms(uri: Uri, hidden: Set<String>, group: String? = null): List<Pair<Long, Prog>> {
         val out = ArrayList<Pair<Long, Prog>>()
         contentResolver.query(uri, null, null, null, null)?.use { c ->
             fun str(col: String) = c.getColumnIndex(col).let { if (it < 0 || c.isNull(it)) null else c.getString(it) }
@@ -2570,7 +2606,8 @@ class MainActivity : Activity() {
                     if (duration > 0 && position in 1000 until duration) timeLeft(duration - position) else null,
                 ).joinToString(" - ")
                 val progress = if (duration > 0 && position >= 1000) (position * 100 / duration).toInt().coerceIn(0, 100) else 0
-                val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), str("package_name"))
+                val pkg = str("package_name")
+                val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), pkg, group ?: pkg)
                 out += watchSortKey(num("watch_next_type"), num("last_engagement_time_utc_millis")) to prog
             }
         }
@@ -2615,6 +2652,7 @@ class MainActivity : Activity() {
         watchRow.removeAllViews()
         val visible = if (list.isEmpty()) View.GONE else View.VISIBLE
         watchTitle.visibility = visible
+        watchTitle.text = rowName()
         watchScroll.visibility = visible
         // ~16 ms per card here and only four show at once: the first four now, the next four on the next frame.
         addCardsTo(3)
@@ -2881,6 +2919,8 @@ class MainActivity : Activity() {
         const val DARK_TEXT = 0xFFF5F5F5.toInt()
         const val DARK_TEXT_2 = 0xFF7A7A7A.toInt() // values, unfocused rows, supporting text
         // Translucent (70% at rest, 80% selected), so the wallpaper shows through the tiles like frosted glass.
+        /** Android's own Watch Next list, listed with the channels so it can be turned off too. */
+        const val WATCH_NEXT = "watchnext"
         val DARK_CARD = intArrayOf(0xB30B0B0B.toInt(), 0xB3040404.toInt())
         val DARK_CARD_LIT = intArrayOf(0xCC141414.toInt(), 0xCC070707.toInt())
         const val RIM_TOP = 0x17FFFFFF // white 9%

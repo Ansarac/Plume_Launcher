@@ -64,9 +64,12 @@
     <string name="monochrome">Monochrome</string>
     <string name="restore_hidden">Restore hidden shows</string>
     <string name="none_hidden">None hidden</string>
-    <string name="cw_apps">Continue Watching apps</string>
-    <string name="cw_channels">Continue Watching channels</string>
-    <string name="no_channels">No apps on this TV publish channels</string>
+    <string name="cw_apps">Apps</string>
+    <string name="cw_channels">Channels</string>
+    <string name="row_name">Row name</string>
+    <string name="watch_next">Android TV Watch Next</string>
+    <string name="bottom_row">Bottom row</string>
+    <string name="automatic">Automatic</string>
     <string name="all_on">All on</string>
     <string name="weather">Weather</string>
     <string name="weather_units">Weather units</string>
