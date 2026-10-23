@@ -50,4 +50,12 @@ class ContinueWatchingTest {
         val rows = listOf(watchSortKey(1, 1_792_576_332_167) to "netflix/next", watchSortKey(0, 1_792_581_271) to "wholphin/ncis")
         assertEquals(listOf("wholphin/ncis", "netflix/next"), newestPerApp(rows, 3) { it.substringBefore('/') })
     }
+
+    @Test fun continueWatchingChannelsStartOnOthersOff() {
+        assertEquals(true, channelOn("Continue Watching", "stremio/Continue Watching", emptySet()))
+        assertEquals(false, channelOn("On Deck", "plex/On Deck", emptySet()))
+        // Switched by the user, each way.
+        assertEquals(true, channelOn("On Deck", "plex/On Deck", setOf("plex/On Deck")))
+        assertEquals(false, channelOn("Continue watching", "stremio/Continue watching", setOf("stremio/Continue watching")))
+    }
 }
