@@ -190,5 +190,11 @@
     <string name="section_weather">Weather</string>
     <string name="section_screensaver">Screensaver</string>
     <string name="section_home">Home button</string>
+    <string name="sources">Sources</string>
+    <string name="no_signal">No signal</string>
+    <string name="in_row">In the row</string>
+    <string name="input_added">Added to the row.</string>
+    <string name="input_removed">Removed from the row.</string>
+    <string name="sources_hint">Hold OK to pin an input to the row.</string>
     <string name="bing_daily">Bing picture of the day</string>
 </resources>
