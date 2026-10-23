@@ -26,6 +26,7 @@ Plume replaces the cluttered stock home screen with the two things you actually 
 - **Continue Watching.** Resume shows and films from Android TV's Watch Next list and from apps that publish their own "Continue Watching" channel, such as Stremio.
 - **Clean apps row.** Monochrome logos (or the same logos in brand colour) in a single row, with names on focus, always or never. Rearrange it by holding OK, sort by most used, or hide apps you don't use (they stay in All apps). An optional PIN locks the layout so small hands can't rearrange it.
 - **Sources list.** The Sources icon in the top bar opens the list of the TV inputs. A console or set-top box that names itself over HDMI-CEC (for example "PlayStation 5") shows with its logo, and selecting it switches the TV to that input. A port with no signal says so. Hold OK on an input to put it in the apps row, and again to take it out.
+- **Remote keys.** Change what a button on your remote does, for example the TV, Netflix or Settings button. A key can do one thing on a press and another when you hold it. See [Remote keys](#remote-keys).
 - **Light, dark or automatic theme**, each with its own wallpaper. Add your own photos from your phone by scanning a QR code, or show a folder of photos from the TV or a USB drive that changes on a timer.
 - **Optional Gallery screensaver.** Public-domain landscape paintings in 16:9, downloaded only if you choose it, or a folder of your own photos.
 - **Optional weather** under the clock.
@@ -68,7 +69,7 @@ Plume's settings panel includes two setup rows:
 Allow the **TV listings** permission when asked; Continue Watching needs it.
 
 > [!NOTE]
-> Android shows the same generic warning for every accessibility service. Plume's service only listens for the Home key and for the system launcher appearing. It cannot read screen content.
+> Android shows the same generic warning for every accessibility service. Plume's service listens for the Home key, for the keys you set under **Remote keys** and for the system launcher appearing. It cannot read screen content.
 
 > [!TIP]
 > **Android 13 and newer:** Android blocks sideloaded apps from Accessibility at first. Open **Settings → Apps → Plume**, choose **Allow restricted settings** from the menu, then turn the service on.
@@ -113,8 +114,21 @@ Android 13 and newer grey out the Accessibility switch for apps installed outsid
 | Show app names always, on focus or never | **Settings → App names** |
 | Switch between monochrome and colour icons | **Settings → Icon style** |
 | Update Plume | **Settings → Updates** |
+| Change what a remote key does | **Plume settings → Remote keys** |
 | Lock the layout with a PIN | **Settings → Lock layout** |
 | Open the Google TV dashboard | Hold the **Home** button |
+
+### Remote keys
+
+**Plume settings → Remote keys → Add a key**, then press the key on your remote. Plume detects it. For each key, choose what a **Press** does and what a **Hold** does:
+
+- open an app or an HDMI input (**Open an app or input…**)
+- a media key: Play / Pause, Next, Previous, Stop, Rewind or Fast-forward
+- a system action: Back, Recent apps, Notifications, Quick settings or the Power menu
+- open **Android settings** or **Network settings**
+- **Do nothing**
+
+Back, OK, the arrows, Home, Power and the volume keys can't be changed, so the remote can't be locked out and keeps its volume. A key you set stops doing its usual job. **Remove this key** gives it back. The keys work through the Home button service, so **Plume: Home button** must be on in Accessibility settings.
 
 ### Custom wallpapers
 
