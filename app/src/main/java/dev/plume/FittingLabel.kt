@@ -3,6 +3,7 @@ package dev.plume
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
+import android.text.TextDirectionHeuristics
 import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.View
@@ -66,7 +67,7 @@ internal class FittingLabel @JvmOverloads constructor(context: Context, attrs: A
         invalidate()
         val avail = available()
         val overflow = labelOverflow(paint.measureText(text, 0, text.length), avail)
-        if (!active || overflow <= 0f || avail <= 0f || !isAttachedToWindow) return
+        if (!active || overflow <= 0f || avail <= 0f || !isAttachedToWindow || windowVisibility != View.VISIBLE) return
         val cycle = marqueeCycle(overflow, SPEED_DP * resources.displayMetrics.density)
         animator = ValueAnimator.ofInt(0, cycle.totalMs).apply {
             duration = cycle.totalMs.toLong()
@@ -116,7 +117,7 @@ internal class FittingLabel @JvmOverloads constructor(context: Context, attrs: A
         val p = paint
         p.color = currentTextColor
         val left = if (box > 0) (width - box) / 2f else paddingLeft.toFloat()
-        val rtl = layoutDirection == View.LAYOUT_DIRECTION_RTL
+        val rtl = TextDirectionHeuristics.FIRSTSTRONG_LTR.isRtl(text, 0, text.length) // the text's own direction: the tiles are always left to right
         val full = p.measureText(text, 0, text.length)
         val shown = if (full <= avail || animator != null) text else TextUtils.ellipsize(text, p, avail, TextUtils.TruncateAt.END)
         val w = p.measureText(shown, 0, shown.length)
