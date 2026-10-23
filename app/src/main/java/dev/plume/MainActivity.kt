@@ -25,7 +25,11 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
 import android.graphics.Typeface
+import android.graphics.ColorFilter
 import android.graphics.ColorMatrix
+import android.graphics.Outline
+import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
@@ -2737,16 +2741,15 @@ class MainActivity : Activity() {
      * Only transform/alpha/colour change, so it stays on the GPU and costs no re-layout.
      */
     private fun style(v: View, radius: Int, card: Boolean, lift: Float = 1.08f, onFocus: ((Boolean) -> Unit)? = null) {
-        val sheen = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x40FFFFFF, 0x00FFFFFF)).apply {
-            cornerRadius = radius.toFloat()
-            alpha = 0
-            setDither(true)
-        }
-        val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, if (card) cardRest else intArrayOf(0, 0)).apply {
+        fun gradient(colors: IntArray) = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, colors).apply {
             cornerRadius = radius.toFloat()
             setDither(true)
         }
-        v.background = if (dark && card) rimCard(radius, false) else bg
+        val sheenColors = intArrayOf(0x40FFFFFF, 0x00FFFFFF)
+        val sheen = Baked("sheen $radius", gradient(sheenColors)).apply { alpha = 0 }
+        val rest = if (card) Baked("card $radius ${cardRest.contentToString()}", gradient(cardRest)) else null
+        val lit = if (card) Baked("card $radius ${cardLit.contentToString()}", gradient(cardLit)) else null
+        v.background = if (dark && card) rimCard(radius, false) else rest ?: GradientDrawable().apply { cornerRadius = radius.toFloat() }
         if (!dark) v.foreground = sheen
         v.clipToOutline = true
         v.elevation = if (card) dp(2).toFloat() else 0f
@@ -2756,7 +2759,7 @@ class MainActivity : Activity() {
         v.setOnFocusChangeListener { _, focused ->
             sheen.alpha = if (focused) 255 else 0
             if (card && dark) v.background = rimCard(radius, focused)
-            else if (card) bg.colors = if (focused) cardLit else cardRest
+            else if (card) v.background = if (focused) lit else rest
             v.animate()
                 .scaleX(if (focused) lift else 1f).scaleY(if (focused) lift else 1f)
                 .translationZ(if (focused) dp(14).toFloat() else 0f)
@@ -2777,13 +2780,37 @@ class MainActivity : Activity() {
             setStroke(1, if (lit) RIM_SIDE_LIT else RIM_SIDE) // 1px, not 1dp: a hairline stays crisp
             setDither(true) // near black the gradient has ~8 steps; dithered, they don't show as bands
         }
-        return LayerDrawable(arrayOf(body, ColorDrawable(if (lit) RIM_TOP_LIT else RIM_TOP))).apply {
+        return Baked("rim $radius $lit $solid", LayerDrawable(arrayOf(body, ColorDrawable(if (lit) RIM_TOP_LIT else RIM_TOP))).apply {
             setLayerGravity(1, Gravity.TOP or Gravity.FILL_HORIZONTAL)
             setLayerHeight(1, 1)
             setLayerInsetLeft(1, radius)
             setLayerInsetRight(1, radius)
-        }
+        })
     }
+
+    /**
+     * Draws [src] once into a bitmap, then only copies that bitmap. Drawn in software, so the dithering is real
+     * and free afterwards; dithered on the GPU it costs every pixel on every frame, which tripled app-row jank on
+     * the TV. Same look and size share one bitmap, so a row of tiles costs one.
+     */
+    private inner class Baked(private val key: String, private val src: Drawable) : Drawable() {
+        private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+        private var bmp: Bitmap? = null
+        override fun onBoundsChange(b: Rect) {
+            src.setBounds(0, 0, b.width(), b.height())
+            bmp = if (b.isEmpty) null else baked.getOrPut("$key ${b.width()}x${b.height()}") {
+                Bitmap.createBitmap(b.width(), b.height(), Bitmap.Config.ARGB_8888).also { src.draw(Canvas(it)) }
+            }
+        }
+        override fun draw(c: Canvas) { bmp?.let { c.drawBitmap(it, bounds.left.toFloat(), bounds.top.toFloat(), paint) } }
+        override fun getOutline(o: Outline) { src.getOutline(o); o.offset(bounds.left, bounds.top) }
+        override fun setAlpha(a: Int) { if (paint.alpha != a) { paint.alpha = a; invalidateSelf() } }
+        override fun getAlpha() = paint.alpha
+        override fun setColorFilter(f: ColorFilter?) { paint.colorFilter = f }
+        @Deprecated("Deprecated in Java") override fun getOpacity() = PixelFormat.TRANSLUCENT
+    }
+    // ponytail: never evicted; fine while only a few tile sizes exist, cap it if views start animating their size
+    private val baked = HashMap<String, Bitmap>()
 
     /** Supporting text: the secondary grey in dark mode, [lightAlpha] of the main colour in light mode. */
     private fun TextView.secondary(lightAlpha: Float) = if (dark) setTextColor(DARK_TEXT_2) else alpha = lightAlpha
