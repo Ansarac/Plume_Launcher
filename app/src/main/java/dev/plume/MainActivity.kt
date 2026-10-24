@@ -309,10 +309,12 @@ class MainActivity : Activity() {
         )) findViewById<ImageView>(id).apply {
             setColorFilter(fg)
             val ring = GradientDrawable().apply { shape = GradientDrawable.OVAL }
+            // Lit, the icon sits on its ring, so it takes the theme colour; otherwise it's on the wallpaper (see fitInk).
             background = ring
             setOnFocusChangeListener { v, focused ->
                 if (focused) lastTop = v
                 ring.setColor(if (!focused) 0 else if (dark) DARK_CARD_LIT[0] else Color.WHITE)
+                setColorFilter(if (focused) fg else iconInk)
                 animate().scaleX(if (focused) 1.15f else 1f).scaleY(if (focused) 1.15f else 1f)
                     .setDuration(160).setInterpolator(DECELERATE).start()
             }
@@ -735,7 +737,78 @@ class MainActivity : Activity() {
         for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.watchTitle, R.id.allAppsTitle, R.id.rowLabel, R.id.weather)) {
             findViewById<TextView>(id).setTextColor(fg)
         }
-        wifi.setColorFilter(fg)
+        iconInk = fg
+        for (v in topIcons()) v.setColorFilter(if (v.isFocused) fg else iconInk)
+        watchInk = fg
+    }
+
+    // ---------- text over the wallpaper ----------
+    // The wallpaper can be any photo, so the theme's text colour can vanish into it. A tiny copy of the wallpaper is
+    // kept, and the clock block and the Continue watching text each take white or near-black, whichever stands out
+    // more from the pixels right behind them. Plain wallpapers keep the theme's colour.
+
+    private var wpThumb: Bitmap? = null
+    private var watchInk = Color.BLACK
+    private var iconInk = Color.BLACK
+
+    private fun topIcons() = listOf(R.id.wifi, R.id.sourcesButton, R.id.allAppsButton, R.id.systemSettings, R.id.launcherSettings)
+        .map { findViewById<ImageView>(it) }
+
+    private fun fitInk() {
+        val top = listOf(R.id.clock, R.id.date, R.id.weather).map { findViewById<TextView>(it) }
+        val topInk = inkBehind(top)
+        for (v in top) ink(v, topInk, fade = true)
+        val icons = topIcons()
+        iconInk = inkBehind(icons)
+        for (v in icons) if (!v.isFocused) v.setColorFilter(iconInk)
+        val apps = listOf(R.id.appsTitle, R.id.rowLabel).map { findViewById<TextView>(it) }
+        val appsInk = inkBehind(apps)
+        for (v in apps) ink(v, appsInk, fade = true)
+        val watch = listOf(watchTitle) + (0 until watchRow.childCount).flatMap { i ->
+            (watchRow.getChildAt(i) as ViewGroup).let { col -> (0 until col.childCount).mapNotNull { col.getChildAt(it) as? TextView } }
+        }
+        watchInk = inkBehind(watch)
+        for (v in watch) ink(v, watchInk, fade = true)
+    }
+
+    /** White or near-black, by the average brightness of the wallpaper under [views]; the theme colour without a photo. */
+    private fun inkBehind(views: List<View>): Int {
+        val t = wpThumb ?: return fg
+        val wall = findViewById<View>(R.id.wallpaper)
+        val at = IntArray(2)
+        wall.getLocationInWindow(at)
+        val (wx, wy) = at[0] to at[1]
+        val r = Rect()
+        for (v in views) if (v.isShown && v.width > 0) {
+            v.getLocationInWindow(at)
+            r.union(at[0] - wx, at[1] - wy, at[0] - wx + v.width, at[1] - wy + v.height)
+        }
+        if (r.isEmpty || wall.width == 0) return fg
+        // The wallpaper is centre-cropped: scaled to cover the screen, centred.
+        val s = maxOf(wall.width.toFloat() / t.width, wall.height.toFloat() / t.height)
+        val dx = (wall.width - t.width * s) / 2
+        val dy = (wall.height - t.height * s) / 2
+        fun tx(x: Int) = ((x - dx) / s).toInt().coerceIn(0, t.width - 1)
+        fun ty(y: Int) = ((y - dy) / s).toInt().coerceIn(0, t.height - 1)
+        var sum = 0f
+        var n = 0
+        for (y in ty(r.top)..ty(r.bottom)) for (x in tx(r.left)..tx(r.right)) {
+            sum += Color.luminance(t.getPixel(x, y))
+            n++
+        }
+        return inkFor(sum / n)
+    }
+
+    /** Text colour plus a soft shadow in the opposite colour, so it holds on busy photos too. */
+    private fun ink(v: TextView, color: Int, fade: Boolean = false) {
+        if (wpThumb == null) v.setShadowLayer(0f, 0f, 0f, 0)
+        else v.setShadowLayer(dp(4).toFloat(), 0f, dp(1).toFloat(), if (color == Color.WHITE) 0x80000000.toInt() else 0x80FFFFFF.toInt())
+        if (!fade || v.currentTextColor == color) return v.setTextColor(color)
+        ValueAnimator.ofArgb(v.currentTextColor, color).apply {
+            duration = 800 // with the wallpaper's crossfade
+            addUpdateListener { v.setTextColor(it.animatedValue as Int) }
+            start()
+        }
     }
 
     // ---------- wallpapers ----------
@@ -778,6 +851,8 @@ class MainActivity : Activity() {
         val choice = currentWallpaper()
         if (choice.startsWith("plain:")) { // the root's ground colour shows through
             view.setImageDrawable(null)
+            wpThumb = null
+            fitInk()
             return
         }
         val fallback = defaultWallpaper(dark)
@@ -789,6 +864,7 @@ class MainActivity : Activity() {
             } catch (e: OutOfMemoryError) { // a picture on a TV short of memory: show the default instead of crashing
                 null
             } ?: decodeWallpaper(fallback)
+            val thumb = bmp?.let { Bitmap.createScaledBitmap(it, 64, maxOf(1, 64 * it.height / it.width), true) }
             // Nothing reads the pixels from here on: keep the picture in graphics memory only, not once more in the process.
             val shown = bmp?.let { b ->
                 try {
@@ -798,6 +874,8 @@ class MainActivity : Activity() {
                 }
             }
             ui.post {
+                wpThumb = thumb
+                fitInk()
                 val old = view.drawable
                 if (old == null || shown == null) return@post view.setImageBitmap(shown)
                 // Soft change from one photo to the next; then drop the old one so only one stays in memory.
@@ -2719,6 +2797,7 @@ class MainActivity : Activity() {
         view.text = listOfNotNull("$temp° ${weatherWord(prefs.getInt("wx_code", 0))}".trim(), prefs.getString("geo_city", null))
             .joinToString("  ·  ")
         view.visibility = View.VISIBLE
+        view.post { fitInk() }
     }
 
     /** WMO weather codes, as Open-Meteo reports them. */
@@ -2941,6 +3020,7 @@ class MainActivity : Activity() {
         watchScroll.visibility = visible
         // ~16 ms per card here and only four show at once: the first four now, the next four on the next frame.
         addCardsTo(3)
+        watchRow.post { fitInk() }
         ui.post { if (watchKey == key) addCardsTo(CARDS_AHEAD - 1) } // unless a newer list replaced this one
         if (focusedAt >= 0) {
             ((watchRow.getChildAt(focusedAt.coerceAtMost(watchRow.childCount - 1)) as? LinearLayout)?.getChildAt(0)
@@ -2985,8 +3065,7 @@ class MainActivity : Activity() {
             isSingleLine = true
             ellipsize = TextUtils.TruncateAt.MARQUEE
             marqueeRepeatLimit = -1
-            setTextColor(Color.WHITE)
-            setShadowLayer(dp(3).toFloat(), 0f, dp(1).toFloat(), 0x99000000.toInt())
+            ink(this, watchInk)
         }
         val frame = FrameLayout(this)
         style(frame, dp(8), card = true, lift = 1.1f) { focused ->
@@ -3002,25 +3081,18 @@ class MainActivity : Activity() {
         frame.setTag(R.id.watchRow, p) // holding OK hides it (see onHold)
         // 2:1 keeps logos and badges that providers bake into 16:9 art.
         col.addView(frame, LinearLayout.LayoutParams(w, w / 2))
-        // Title/progress/source sit over the home wallpaper, which can be anything: a dark scrim panel
-        // under them (not just text shadows) keeps them readable regardless of what's behind.
-        val info = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply { cornerRadius = dp(6).toFloat(); setColor(0x8A000000.toInt()) }
-            setPadding(dp(8), dp(6), dp(8), dp(8))
-        }
         // Thin bar under the poster, card width. Kept (invisible) when there's no progress so titles line up.
-        info.addView(ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+        col.addView(ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100
             progress = p.progress
             progressDrawable = progressBarDrawable()
             visibility = if (p.progress > 0) View.VISIBLE else View.INVISIBLE
-        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(3)).apply { topMargin = dp(2) })
-        info.addView(title)
+        }, LinearLayout.LayoutParams(w, dp(3)).apply { topMargin = dp(8) })
+        col.addView(title)
         val icon = sourceIcon(p.pkg)
         if (p.sub.isNotEmpty() || icon != null) {
-            info.addView(label(p.sub, 12f).apply {
-                setTextColor(Color.WHITE)
+            col.addView(label(p.sub, 12f).apply {
+                ink(this, watchInk)
                 alpha = 0.8f
                 setPadding(0, dp(2), 0, 0)
                 icon?.let {
@@ -3030,7 +3102,6 @@ class MainActivity : Activity() {
                 }
             })
         }
-        col.addView(info, LinearLayout.LayoutParams(w, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
         loadPoster(img, p.image)
         return col
     }
@@ -3337,4 +3408,11 @@ class MainActivity : Activity() {
             "com.android.vending" to (R.drawable.logo_googleplay to false),
         )
     }
+}
+
+/** White or near-black over a background of luminance [lum], whichever has the higher contrast (WCAG). */
+internal fun inkFor(lum: Float): Int {
+    val dark = 0xFF111214.toInt()
+    val darkLum = 0.0063f // luminance of #111214
+    return if (1.05f / (lum + 0.05f) >= (lum + 0.05f) / (darkLum + 0.05f)) Color.WHITE else dark
 }
