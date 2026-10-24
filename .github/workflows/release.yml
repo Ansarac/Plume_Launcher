@@ -38,4 +38,4 @@ jobs:
           ver=${GITHUB_REF_NAME#v}
           awk -v h="## $ver" '$0 == h { f = 1; next } /^## / { f = 0 } f' CHANGELOG.md > notes.md
           cp app/build/outputs/apk/release/app-release.apk Plume.apk
-          gh release create "$GITHUB_REF_NAME" Plume.apk --title "Plume $ver" --notes-file notes.md
+          gh release create "$GITHUB_REF_NAME" Plume.apk --title "Plume $ver" --notes-file notes.md --draft
