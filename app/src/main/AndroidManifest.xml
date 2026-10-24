@@ -56,6 +56,17 @@
             </intent-filter>
         </activity>
 
+        <!-- App icon for TV launchers that list only LAUNCHER apps (Xiaomi). No HOME, so they don't hide it. -->
+        <activity-alias
+            android:name=".LauncherEntry"
+            android:targetActivity=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Back to the home screen after an update (Android kills the old version, which uncovers the last app). -->
         <receiver android:name=".Updated" android:exported="false">
             <intent-filter>
