@@ -46,4 +46,26 @@ class GlassTest {
         assertEquals(-300f, m[2], 0.001f)
         assertEquals(-200f, m[3], 0.001f)
     }
+
+    @Test fun aSixteenByNinePhotoFillsTheScreen() {
+        val r = glassCrop(1920, 1080)
+        assertTrue(r[0] <= 0.5f && r[1] <= 0.5f && r[2] >= GLASS_W - 0.5f && r[3] >= GLASS_H - 0.5f)
+    }
+
+    @Test fun aFourByThreePhotoIsScaledByTheWidthAndCentredAsTheWallpaperIs() {
+        val r = glassCrop(1600, 1200)
+        assertEquals(0f, r[0], 0.01f)
+        assertEquals(GLASS_W.toFloat(), r[2], 0.01f)
+        assertEquals(GLASS_H / 2f, (r[1] + r[3]) / 2, 0.01f) // centred, not pinned to the top
+        assertTrue(r[1] < 0f && r[3] > GLASS_H)
+    }
+
+    @Test fun aPhonePhotoAndAPanoramaAreCentredToo() {
+        for ((w, h) in listOf(1080 to 1920, 4000 to 1000)) {
+            val r = glassCrop(w, h)
+            assertEquals(GLASS_W / 2f, (r[0] + r[2]) / 2, 0.01f)
+            assertEquals(GLASS_H / 2f, (r[1] + r[3]) / 2, 0.01f)
+            assertTrue(r[0] <= 0.01f && r[1] <= 0.01f && r[2] >= GLASS_W - 0.01f && r[3] >= GLASS_H - 0.01f) // always covers
+        }
+    }
 }

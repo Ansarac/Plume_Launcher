@@ -60,6 +60,17 @@ internal fun glassTone(px: IntArray, dark: Boolean): IntArray = IntArray(px.size
 }
 
 /**
+ * Where a [w]x[h] picture lands on the [GLASS_W]x[GLASS_H] screen, as the wallpaper view's centerCrop puts it: scaled by
+ * the larger of the two ratios and centred. Left, top, right, bottom; a photo that is not 16:9 spills over the edges.
+ */
+internal fun glassCrop(w: Int, h: Int): FloatArray {
+    val scale = maxOf(GLASS_W.toFloat() / w, GLASS_H.toFloat() / h)
+    val dw = w * scale
+    val dh = h * scale
+    return floatArrayOf((GLASS_W - dw) / 2, (GLASS_H - dh) / 2, (GLASS_W + dw) / 2, (GLASS_H + dh) / 2)
+}
+
+/**
  * The wallpaper as it shows on the screen, blurred, as [GLASS_W]x[GLASS_H] pixels. [ground] fills what the picture
  * does not cover. Done once when a wallpaper loads, off the UI thread.
  */
@@ -70,7 +81,8 @@ internal fun glassPixels(wallpaper: Bitmap, ground: Int, dark: Boolean): IntArra
     val c = Canvas(screen)
     c.drawColor(ground or (0xFF shl 24))
     val paint = Paint(Paint.FILTER_BITMAP_FLAG)
-    c.drawBitmap(mid, Rect(0, 0, mid.width, mid.height), RectF(0f, 0f, GLASS_W.toFloat(), mid.height * GLASS_W.toFloat() / mid.width), paint)
+    val at = glassCrop(mid.width, mid.height)
+    c.drawBitmap(mid, Rect(0, 0, mid.width, mid.height), RectF(at[0], at[1], at[2], at[3]), paint)
     mid.recycle()
     val px = IntArray(GLASS_W * GLASS_H)
     screen.getPixels(px, 0, GLASS_W, 0, 0, GLASS_W, GLASS_H)

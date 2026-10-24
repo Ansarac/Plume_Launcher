@@ -464,7 +464,7 @@ class MainActivity : Activity() {
                 on.split(':').filter { ComponentName.unflattenFromString(it) != me }.joinToString(":"))
         }
         if (homeServiceOn()) {
-            toast(getString(R.string.home_off_hint), long = true)
+            toast(getString(R.string.home_off_hint), long = true, system = true)
             openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS)
         }
         renderSettings(R.string.home_button)
@@ -477,7 +477,7 @@ class MainActivity : Activity() {
         if (homeServiceOn()) return renderSettings(R.string.home_button)
         // The written path is the safety net: some Google TVs (a Xiaomi stick) answer the Accessibility link
         // with "You don't have an app that can do this", which we can't detect from here.
-        toast(getString(R.string.home_on_hint), long = true)
+        toast(getString(R.string.home_on_hint), long = true, system = true)
         openHomeServiceSettings()
     }
 
@@ -806,10 +806,11 @@ class MainActivity : Activity() {
 
     /**
      * A short message at the bottom of the screen. With Glass it is a frosted pill, which fades in and out;
-     * otherwise it is the system's toast.
+     * otherwise it is the system's toast. A message shown just before another screen opens keeps the system's toast
+     * ([system]): the pill would stay behind that screen and nobody would see it.
      */
-    private fun toast(text: CharSequence, long: Boolean = false) {
-        if (!frosted()) return Toast.makeText(this, text, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+    private fun toast(text: CharSequence, long: Boolean = false, system: Boolean = false) {
+        if (system || !frosted()) return Toast.makeText(this, text, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
         val root = findViewById<FrameLayout>(R.id.root)
         noteHide?.let { ui.removeCallbacks(it) }
         noteView?.let { root.removeView(it) }
@@ -2462,7 +2463,7 @@ class MainActivity : Activity() {
         if (galleryOn()) return
         if (checkSelfPermission(WRITE_SECURE) != PackageManager.PERMISSION_GRANTED) {
             // Without the adb permission Plume can't switch it itself; Android's own list has getString(R.string.gallery).
-            toast(getString(R.string.choose_gallery_hint), long = true)
+            toast(getString(R.string.choose_gallery_hint), long = true, system = true)
             return openScreensaverSettings()
         }
         prefs.edit().putString("prev_screensaver", currentScreensaver()).apply()
@@ -2613,7 +2614,7 @@ class MainActivity : Activity() {
     private fun installUpdate(ver: String) {
         if (updating) return
         if (!packageManager.canRequestPackageInstalls()) {
-            toast(getString(R.string.allow_installs), long = true)
+            toast(getString(R.string.allow_installs), long = true, system = true)
             return openSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
         }
         updating = true
