@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/plume-icon.png" alt="Plume logo" width="128">
+</p>
+
 <h1 align="center">Plume Launcher</h1>
 
 <p align="center">
