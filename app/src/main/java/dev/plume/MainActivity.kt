@@ -30,6 +30,8 @@ import android.graphics.ColorFilter
 import android.graphics.ColorMatrix
 import android.graphics.Outline
 import android.graphics.PixelFormat
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.graphics.Rect
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.AdaptiveIconDrawable
@@ -1678,7 +1680,6 @@ class MainActivity : Activity() {
     /** Home row names: "focus" (under the focused tile only), "always" (in every tile) or "never". */
     private fun rowNames() = prefs.getString("names", "focus")!!
 
-    /** Each app's own shipped icon instead of the mono mark, in the row and All apps. */
     /** "mono", "colour" or "banner". The old on/off "colour_icons" decides until a style has been picked. */
     private fun iconStyle() = iconStyleOf(prefs.getString("icon_style", null), prefs.getBoolean("colour_icons", false))
 
@@ -3140,6 +3141,8 @@ class MainActivity : Activity() {
         override fun setAlpha(a: Int) { if (paint.alpha != a) { paint.alpha = a; invalidateSelf() } }
         override fun getAlpha() = paint.alpha
         override fun setColorFilter(f: ColorFilter?) { paint.colorFilter = f }
+        // A tinted tile (Banner style, an app with no banner) is one solid colour in the card's shape.
+        override fun setTintList(t: ColorStateList?) { paint.colorFilter = t?.let { PorterDuffColorFilter(it.defaultColor, PorterDuff.Mode.SRC_IN) }; invalidateSelf() }
         @Deprecated("Deprecated in Java") override fun getOpacity() = PixelFormat.TRANSLUCENT
     }
     // ponytail: never evicted; fine while only a few tile sizes exist, cap it if views start animating their size
