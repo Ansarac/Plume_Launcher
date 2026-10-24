@@ -309,10 +309,12 @@ class MainActivity : Activity() {
         )) findViewById<ImageView>(id).apply {
             setColorFilter(fg)
             val ring = GradientDrawable().apply { shape = GradientDrawable.OVAL }
+            // Lit, the icon sits on its ring, so it takes the theme colour; otherwise it's on the wallpaper (see fitInk).
             background = ring
             setOnFocusChangeListener { v, focused ->
                 if (focused) lastTop = v
                 ring.setColor(if (!focused) 0 else if (dark) DARK_CARD_LIT[0] else Color.WHITE)
+                setColorFilter(if (focused) fg else iconInk)
                 animate().scaleX(if (focused) 1.15f else 1f).scaleY(if (focused) 1.15f else 1f)
                     .setDuration(160).setInterpolator(DECELERATE).start()
             }
@@ -735,7 +737,8 @@ class MainActivity : Activity() {
         for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.watchTitle, R.id.allAppsTitle, R.id.rowLabel, R.id.weather)) {
             findViewById<TextView>(id).setTextColor(fg)
         }
-        wifi.setColorFilter(fg)
+        iconInk = fg
+        for (v in topIcons()) v.setColorFilter(if (v.isFocused) fg else iconInk)
         watchInk = fg
     }
 
@@ -746,11 +749,18 @@ class MainActivity : Activity() {
 
     private var wpThumb: Bitmap? = null
     private var watchInk = Color.BLACK
+    private var iconInk = Color.BLACK
+
+    private fun topIcons() = listOf(R.id.wifi, R.id.sourcesButton, R.id.allAppsButton, R.id.systemSettings, R.id.launcherSettings)
+        .map { findViewById<ImageView>(it) }
 
     private fun fitInk() {
         val top = listOf(R.id.clock, R.id.date, R.id.weather).map { findViewById<TextView>(it) }
         val topInk = inkBehind(top)
         for (v in top) ink(v, topInk, fade = true)
+        val icons = topIcons()
+        iconInk = inkBehind(icons)
+        for (v in icons) if (!v.isFocused) v.setColorFilter(iconInk)
         val apps = listOf(R.id.appsTitle, R.id.rowLabel).map { findViewById<TextView>(it) }
         val appsInk = inkBehind(apps)
         for (v in apps) ink(v, appsInk, fade = true)
