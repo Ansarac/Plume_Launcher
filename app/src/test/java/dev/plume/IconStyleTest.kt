@@ -1,6 +1,8 @@
 package dev.plume
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class IconStyleTest {
@@ -8,6 +10,14 @@ class IconStyleTest {
         assertEquals("banner", iconStyleOf("banner", oldColour = false))
         assertEquals("mono", iconStyleOf("mono", oldColour = true))
         assertEquals("colour", iconStyleOf("colour", oldColour = false))
+    }
+
+    @Test fun theMonochromeBannerIsABannerStyle() {
+        assertEquals("bannermono", iconStyleOf("bannermono", oldColour = true))
+        assertTrue(isBannerStyle("banner"))
+        assertTrue(isBannerStyle("bannermono"))
+        assertFalse(isBannerStyle("mono"))
+        assertFalse(isBannerStyle("colour"))
     }
 
     @Test fun peopleWhoChoseColourBeforeStylesStayOnColour() {
