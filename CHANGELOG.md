@@ -20,6 +20,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - **Remote keys.** Change what a button on your remote does. Select **Plume settings → Remote keys → Add a key**. Press the key on your remote. Then choose what a press does and what a hold does. A key can play or pause, go back, or open an app or an input. It can also open Android settings or the network settings, or do nothing. If you set a PIN in **Lock layout**, Plume asks for it first.
 - A long app name no longer runs past its tile. It scrolls slowly while the app is selected.
 - **Uninstall an app.** Hold **OK** on an app in the row. Select **Uninstall**. Plume does not show this for system apps, for Plume, or when the layout is locked.
+- **Plume settings → App row → Icon style** has a new choice, **Banner**. Each app shows its own picture, as on Apple TV. An app with no banner gets its own colour behind a white mark. Monochrome stays the default.
 
 ## 1.5
 
