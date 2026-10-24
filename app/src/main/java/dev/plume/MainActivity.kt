@@ -751,6 +751,9 @@ class MainActivity : Activity() {
         val top = listOf(R.id.clock, R.id.date, R.id.weather).map { findViewById<TextView>(it) }
         val topInk = inkBehind(top)
         for (v in top) ink(v, topInk, fade = true)
+        val apps = listOf(R.id.appsTitle, R.id.rowLabel).map { findViewById<TextView>(it) }
+        val appsInk = inkBehind(apps)
+        for (v in apps) ink(v, appsInk, fade = true)
         val watch = listOf(watchTitle) + (0 until watchRow.childCount).flatMap { i ->
             (watchRow.getChildAt(i) as ViewGroup).let { col -> (0 until col.childCount).mapNotNull { col.getChildAt(it) as? TextView } }
         }
