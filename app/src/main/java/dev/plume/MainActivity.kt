@@ -1787,7 +1787,8 @@ class MainActivity : Activity() {
                 if (step != null) shown?.text = if (focused) "‹  $value  ›" else value
                 if (focused) {
                     showHelp(style?.help)
-                    spotlight.show(areaBounds(style?.area))
+                    // Posted: when the panel first opens, the scrim has no size yet in this frame.
+                    settingsScrim.post { if (hasFocus()) spotlight.show(areaBounds(style?.area)) }
                 }
             }
             tag = step // dispatchKeyEvent calls it for Left (-1) and Right (+1)
