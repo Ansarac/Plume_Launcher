@@ -1300,7 +1300,7 @@ class MainActivity : Activity() {
             R.string.icon_style to Triple(getString(R.string.icon_style), getString(ICON_STYLES.getValue(iconStyle()))) {
                 steps[R.string.icon_style]!!(1)
             },
-            R.string.restore_hidden to Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else getString(R.string.n_hidden, hidden)) {
+            R.string.restore_hidden to Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else resources.getQuantityString(R.plurals.show_again, hidden, hidden)) {
                 prefs.edit().remove("hidden_watch").apply()
                 watchKey = null
                 refreshWatchNext()
@@ -1353,37 +1353,54 @@ class MainActivity : Activity() {
             },
         )
         for (k in listOf(R.string.sort_apps, R.string.weather_units)) steps[k] = { rows[k]!!.third() }
+        // Like the layout: behind the PIN. unlock() closes the panel after the PIN, so open it again.
+        rows[R.string.section_keys] = page(getString(R.string.section_keys), "${keysSummary()}  ›") {
+            unlock(back = { renderSettings(R.string.section_keys) }) {
+                if (settingsScrim.visibility != View.VISIBLE) showPanel()
+                pickKeys()
+            }
+        }
         val on = { b: Boolean -> getString(if (b) R.string.on else R.string.off) }
+        // Photo fade is for any photo; the timer only for folders, which change photo.
+        val walls = listOf(currentWallpaper(false), currentWallpaper(true))
+        val photo = walls.any { !it.startsWith("res:") && !it.startsWith("plain:") }
+        val folder = walls.any { it.startsWith("folder:") }
+        // In the order things sit on the home screen, top to bottom, then what isn't on it.
         val sections = listOf(
             Triple(R.string.section_appearance, "${rows[R.string.theme]!!.second} · ${wallpaperName(currentWallpaper(dark))}",
-                listOf(R.string.theme, R.string.light_wallpaper, R.string.dark_wallpaper, R.string.photo_fade, R.string.folder_photo_changes)),
-            Triple(R.string.section_app_row, "${rows[R.string.apps_in_row]!!.second} · ${rows[R.string.row_position]!!.second}",
-                listOf(R.string.edit_apps_row, R.string.sort_apps, R.string.apps_in_row, R.string.row_position, R.string.app_names, R.string.icon_style)),
-            // "App row when hidden" only means something once the row can hide.
-            Triple(R.string.bottom_row, rowName(), listOfNotNull(R.string.row_name, R.string.show_row,
-                R.string.apps_when_hidden.takeIf { rowShow() != "always" }, R.string.cw_channels, R.string.cw_apps, R.string.restore_hidden)),
-            Triple(R.string.section_weather, if (weather == "off") on(false) else "${rows[R.string.weather_units]!!.second} · ${rows[R.string.weather_location]!!.second}",
+                listOfNotNull(R.string.theme, R.string.light_wallpaper, R.string.dark_wallpaper, R.string.photo_fade.takeIf { photo },
+                    R.string.folder_photo_changes.takeIf { folder })),
+            Triple(R.string.section_clock_weather, if (weather == "off") on(false) else "${rows[R.string.weather_units]!!.second} · ${rows[R.string.weather_location]!!.second}",
                 listOf(R.string.weather, R.string.weather_units, R.string.weather_location)),
+            Triple(R.string.section_app_row, "${rows[R.string.apps_in_row]!!.second} · ${rows[R.string.row_position]!!.second}",
+                listOf(R.string.edit_apps_row, R.string.apps_in_row, R.string.sort_apps, R.string.icon_style, R.string.app_names, R.string.row_position)),
+            // "Apps when row hides" only means something once the row can hide.
+            Triple(R.string.bottom_row, rowName(), listOfNotNull(R.string.show_row, R.string.apps_when_hidden.takeIf { rowShow() != "always" },
+                R.string.row_name, R.string.cw_apps, R.string.cw_channels, R.string.restore_hidden)),
             Triple(R.string.section_screensaver, rows[R.string.screensaver]!!.second, listOf(R.string.screensaver, R.string.test_screensaver, R.string.screensaver_timing)),
-            Triple(R.string.section_home, on(homeServiceOn() || isDefaultHome()), listOf(R.string.setup_home, R.string.home_button, R.string.default_launcher)),
+            Triple(R.string.section_remote_home, on(homeServiceOn() || isDefaultHome()),
+                listOf(R.string.home_button, R.string.default_launcher, R.string.setup_home, R.string.section_keys)),
+            Triple(R.string.section_lock, on(lockOn()), listOf(R.string.lock_layout)),
         )
         val section = sections.firstOrNull { at in it.third }
         if (section != null) {
             lastSettings = section.first
             val keys = section.third
-            return showPage(getString(section.first), keys.map { rows[it]!! }, keys.indexOf(at), steps = keys.map { steps[it] }) {
+            val note = if (section.first != R.string.section_lock) null else label(getString(R.string.lock_note), 15f).apply {
+                maxLines = 5
+                setPadding(dp(14), dp(4), dp(14), dp(10))
+            }
+            return showPage(getString(section.first), keys.map { rows[it]!! }, keys.indexOf(at), top = note, steps = keys.map { steps[it] }) {
                 renderSettings(section.first)
             }
         }
-        val top = sections.map { (key, value, keys) -> key to page(getString(key), "$value  ›") { renderSettings(keys[0]) } } +
-            (R.string.section_keys to page(getString(R.string.section_keys), "${keysSummary()}  ›") {
-                // Like the layout: behind the PIN. unlock() closes the panel after the PIN, so open it again.
-                unlock(back = { renderSettings(R.string.section_keys) }) {
-                    if (settingsScrim.visibility != View.VISIBLE) showPanel()
-                    pickKeys()
-                }
-            }) +
-            listOf(R.string.updates, R.string.lock_layout).map { it to rows[it]!! } +
+        // Until Home opens Plume one way or the other, a card on top leads to the setup; not after Home was turned off on purpose.
+        val top = listOfNotNull(if (homeServiceOn() || isDefaultHome() || prefs.getBoolean("home_off", false)) null
+                else R.string.finish_setup to page(getString(R.string.finish_setup), "${getString(R.string.finish_setup_value)}  ›") {
+                    closeLauncherSettings(); startHomeSetup()
+                }) +
+            sections.map { (key, value, keys) -> key to page(getString(key), "$value  ›") { renderSettings(keys[0]) } } +
+            (R.string.updates to rows[R.string.updates]!!.let { (t, v, a) -> page(t, "$v  ›", a) }) +
             listOfNotNull(if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) null
                 else R.string.preview_home_setup to page(getString(R.string.preview_home_setup)) { closeLauncherSettings(); previewHomeSetup() })
         showPage(getString(R.string.plume_settings), top.map { it.second }, maxOf(0, top.indexOfFirst { it.first == at }), back = null)

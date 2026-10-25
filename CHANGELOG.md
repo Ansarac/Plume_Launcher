@@ -16,15 +16,16 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
-- **Hide the bottom row.** Select **Plume settings → Bottom row → Show row**. Choose **On Down** to show only the apps and the wallpaper. Press Down to slide the row in, and Up to hide it. Choose **Never** to remove the row. **App row when hidden** keeps the apps in place or moves them down.
+- **Hide the Shows row.** Select **Plume settings → Shows row → Show row**. Choose **On Down** to show only the apps and the wallpaper. Press Down to slide the row in, and Up to hide it. Choose **Never** to remove the row. **Apps when row hides** keeps the apps in place or moves them down.
 - **Text that fits the wallpaper.** The clock, the date, the weather and the Continue watching text change to white or dark to match the wallpaper behind them. You can read them on a bright photo and on a dark photo.
 - **Less memory.** Plume keeps the wallpaper and the app icons once instead of twice. On a test TV, it uses about 11 MB less.
 - A new **Sources** icon in the top bar opens the list of the TV inputs. Select an input to switch to it. A device that names itself over HDMI, like a PS5, shows with its logo. A port with no signal says so. Hold OK on an input to put it in the row or take it out. Inputs that were in the row before the update stay there.
-- **Remote keys.** Change what a button on your remote does. Select **Plume settings → Remote keys → Add a key**. Press the key on your remote. Then choose what a press does and what a hold does. A key can play or pause, go back, or open an app or an input. It can also open Android settings or the network settings, or do nothing. If you set a PIN in **Lock layout**, Plume asks for it first.
+- **Remote keys.** Change what a button on your remote does. Select **Plume settings → Remote & Home button → Remote keys → Add a key**. Press the key on your remote. Then choose what a press does and what a hold does. A key can play or pause, go back, or open an app or an input. It can also open Android settings or the network settings, or do nothing. If you set a PIN in **Lock layout**, Plume asks for it first.
 - A long app name no longer runs past its tile. It scrolls slowly while the app is selected.
 - **Uninstall an app.** Hold **OK** on an app in the row. Select **Uninstall**. Plume does not show this for system apps, for Plume, or when the layout is locked.
-- **Plume settings → App row → Icon style** has a new choice, **Banner**. Each app shows its own picture, as on Apple TV. An app with no banner gets its own colour behind a white mark. Monochrome stays the default.
-- **Plume settings → App row → Icon style** has a fourth choice, **Monochrome banner**. The pictures are grey until you select one. An app with no banner gets its own colour behind a white mark, as with **Banner**.
+- **Plume settings → Apps row → Icon style** has a new choice, **Banner**. Each app shows its own picture, as on Apple TV. An app with no banner gets its own colour behind a white mark. Monochrome stays the default.
+- **Plume settings → Apps row → Icon style** has a fourth choice, **Monochrome banner**. The pictures are grey until you select one. An app with no banner gets its own colour behind a white mark, as with **Banner**.
+- **New order in Plume settings.** The sections follow the home screen from top to bottom: **Wallpaper & theme**, **Clock & weather**, **Apps row** and **Shows row**. Then come **Screensaver**, **Remote & Home button**, **Lock layout** and **Updates**. Some settings have shorter names. Your settings do not change. If Home does not open Plume yet, a **Finish setup** card shows at the top.
 
 ## 1.5
 
