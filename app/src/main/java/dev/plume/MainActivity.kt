@@ -1258,13 +1258,8 @@ class MainActivity : Activity() {
         // Rows with more than two values also step back with Left; two-value rows flip either way.
         val steps = mutableMapOf<Int, (Int) -> Unit>(
             R.string.icon_style to { d ->
-                val wasColour = colourIcons()
                 prefs.edit().putString("icon_style", ICON_STYLES.keys.toList().step(iconStyle(), d)).apply()
                 renderApps()
-                if (colourIcons() != wasColour) { // rebuild the cards so their source icons follow the new style
-                    watchKey = null
-                    showWatchNext(watchList)
-                }
                 renderSettings(R.string.icon_style)
             },
             R.string.theme to { d ->
@@ -1290,6 +1285,12 @@ class MainActivity : Activity() {
                 prefs.edit().putBoolean("row_drop", !rowDrops()).apply()
                 placeRow(animate = false)
                 renderSettings(R.string.apps_when_hidden)
+            },
+            R.string.show_icons to { _ ->
+                prefs.edit().putBoolean("cw_colour", !cwColour()).apply()
+                watchKey = null // rebuild the cards with the new source icons
+                showWatchNext(watchList)
+                renderSettings(R.string.show_icons)
             },
         )
         val rows = linkedMapOf<Int, Triple<String, String, () -> Unit>>(
@@ -1329,6 +1330,9 @@ class MainActivity : Activity() {
             R.string.cw_apps to Triple(getString(R.string.cw_apps), if (cwOff == 0) getString(R.string.all_on) else getString(R.string.n_off, cwOff)) { pickWatchSources() },
             R.string.cw_channels to Triple(getString(R.string.cw_channels), getString(R.string.n_on, channelsOn)) { pickChannels() },
             R.string.row_name to Triple(getString(R.string.row_name), rowName()) { pickRowName() },
+            R.string.show_icons to Triple(getString(R.string.show_icons), getString(if (cwColour()) R.string.colour else R.string.monochrome)) {
+                steps[R.string.show_icons]!!(1)
+            },
             R.string.show_row to Triple(getString(R.string.show_row), getString(ROW_SHOW.getValue(rowShow()))) { steps[R.string.show_row]!!(1) },
             R.string.apps_when_hidden to Triple(getString(R.string.apps_when_hidden), getString(if (rowDrops()) R.string.moves_down else R.string.stays_put)) {
                 steps[R.string.apps_when_hidden]!!(1)
@@ -1396,7 +1400,7 @@ class MainActivity : Activity() {
                 listOf(R.string.edit_apps_row, R.string.apps_in_row, R.string.sort_apps, R.string.icon_style, R.string.app_names, R.string.row_position)),
             // "Apps when row hides" only means something once the row can hide.
             Triple(R.string.bottom_row, rowName(), listOfNotNull(R.string.show_row, R.string.apps_when_hidden.takeIf { rowShow() != "always" },
-                R.string.row_name, R.string.cw_apps, R.string.cw_channels, R.string.restore_hidden)),
+                R.string.row_name, R.string.show_icons, R.string.cw_apps, R.string.cw_channels, R.string.restore_hidden)),
             Triple(R.string.section_screensaver, rows[R.string.screensaver]!!.second, listOf(R.string.screensaver, R.string.test_screensaver, R.string.screensaver_timing)),
             Triple(R.string.section_remote_home, on(homeServiceOn() || isDefaultHome()),
                 listOf(R.string.home_button, R.string.default_launcher, R.string.setup_home, R.string.section_keys)),
@@ -1424,6 +1428,7 @@ class MainActivity : Activity() {
                 R.string.row_position to ROW_ALIGN.values.map { getString(it.first) to null },
                 R.string.show_row to ROW_SHOW.values.map { getString(it) to null },
                 R.string.apps_when_hidden to listOf(R.string.stays_put, R.string.moves_down).map { getString(it) to null },
+                R.string.show_icons to listOf(R.string.monochrome, R.string.colour).map { getString(it) to null },
                 R.string.weather_units to listOf("°C" to null, "°F" to null),
             )
             val walls = mapOf(R.string.light_wallpaper to false, R.string.dark_wallpaper to true)
@@ -3291,10 +3296,10 @@ class MainActivity : Activity() {
         refreshWatchNext()
     }
 
-    /** Small source-app mark for the details line: its logo when we have one (brand colour with colour app icons), else its icon (greyscale unless colour). */
+    /** Small source-app mark for the details line: its logo when we have one (brand colour with colour icons), else its icon (greyscale unless colour). */
     private fun sourceIcon(pkg: String?): Drawable? {
         if (pkg == null) return null
-        val colour = colourIcons()
+        val colour = cwColour()
         val tint = BRAND_COLOURS[pkg]?.takeIf { colour } ?: fg
         LOGOS[pkg]?.takeIf { !it.second }?.let { return getDrawable(it.first)!!.mutate().apply { setTint(tint) } }
         return try {
@@ -3338,6 +3343,9 @@ class MainActivity : Activity() {
 
     /** While the bottom row is hidden, the app row drops into its space (true) or stays where it is. */
     private fun rowDrops() = prefs.getBoolean("row_drop", false)
+
+    /** "Icons" in the shows row: source marks in colour (true) or monochrome, apart from the app row's icon style. */
+    private fun cwColour() = prefs.getBoolean("cw_colour", false)
 
     /**
      * Puts the bottom row and the app row where "Show row" wants them. Both rows are built once and only
@@ -3657,6 +3665,7 @@ class MainActivity : Activity() {
             R.string.edit_apps_row to R.string.help_rearrange, R.string.apps_in_row to R.string.help_choose_apps,
             R.string.sort_apps to R.string.help_order, R.string.icon_style to R.string.help_icon_style,
             R.string.apps_when_hidden to R.string.help_apps_when_hidden, R.string.row_name to R.string.help_row_name,
+            R.string.show_icons to R.string.help_show_icons,
             R.string.cw_apps to R.string.help_from_apps, R.string.cw_channels to R.string.help_channels,
             R.string.restore_hidden to R.string.help_hidden_shows, R.string.screensaver_timing to R.string.help_start_after,
             R.string.home_button to R.string.help_home_button, R.string.default_launcher to R.string.help_default_launcher,
