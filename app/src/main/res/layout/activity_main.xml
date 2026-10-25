@@ -273,7 +273,7 @@
         android:clickable="true"
         android:visibility="gone">
 
-        <LinearLayout
+        <dev.plume.GlassBox
             android:id="@+id/settingsPanel"
             android:layout_width="400dp"
             android:layout_height="match_parent"
@@ -329,6 +329,6 @@
                 android:paddingStart="14dp"
                 android:paddingEnd="14dp"
                 android:textSize="13sp" />
-        </LinearLayout>
+        </dev.plume.GlassBox>
     </FrameLayout>
 </FrameLayout>
