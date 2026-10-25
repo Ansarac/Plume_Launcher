@@ -1,4 +1,5 @@
-// Light or dark site theme. Follows the device until the visitor picks one.
+// Light or dark site theme. Follows the device until the visitor picks one
+// with the Dark/Light switch under the home screenshot.
 (function () {
   var root = document.documentElement;
   var media = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null;
@@ -10,23 +11,15 @@
     return root.dataset.theme || (media && media.matches ? 'light' : 'dark');
   }
   function announce() {
-    var theme = current();
-    document.querySelectorAll('.theme-toggle').forEach(function (b) {
-      b.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-    });
-    document.dispatchEvent(new CustomEvent('themechange', { detail: theme }));
+    document.dispatchEvent(new CustomEvent('themechange', { detail: current() }));
   }
   window.plumeTheme = current;
+  window.plumeSetTheme = function (theme) {
+    root.dataset.theme = theme;
+    try { localStorage.setItem('theme', theme); } catch (e) {}
+    announce();
+  };
 
   if (media && media.addEventListener) media.addEventListener('change', function () { if (!root.dataset.theme) announce(); });
-  document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.theme-toggle').forEach(function (b) {
-      b.addEventListener('click', function () {
-        root.dataset.theme = current() === 'dark' ? 'light' : 'dark';
-        try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
-        announce();
-      });
-    });
-    announce();
-  });
+  document.addEventListener('DOMContentLoaded', announce);
 })();

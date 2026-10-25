@@ -67,13 +67,6 @@ nav { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; }
 nav a { color: var(--muted); text-decoration: none; font-size: 15px; }
 nav a:hover, nav a[aria-current] { color: var(--fg); }
 nav a.btn { color: var(--on-accent); }
-.theme-toggle { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: none; color: var(--muted); cursor: pointer; }
-.theme-toggle:hover { color: var(--fg); border-color: var(--muted); }
-.theme-toggle svg { width: 18px; height: 18px; }
-.theme-toggle .moon { display: none; }
-@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .theme-toggle .sun { display: none; } :root:not([data-theme="dark"]) .theme-toggle .moon { display: block; } }
-:root[data-theme="light"] .theme-toggle .sun { display: none; }
-:root[data-theme="light"] .theme-toggle .moon { display: block; }
 
 /* Buttons */
 .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 24px; border-radius: 999px; background: var(--accent); color: var(--on-accent); text-decoration: none; font: inherit; font-weight: 600; border: 0; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
