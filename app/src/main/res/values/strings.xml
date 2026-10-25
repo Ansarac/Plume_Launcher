@@ -48,7 +48,8 @@
     <string name="done">Done</string>
     <string name="edit_apps_row">Rearrange apps</string>
     <string name="theme">Theme</string>
-    <string name="photo_fade">Photo fade</string>
+    <string name="fade_top">Top fade</string>
+    <string name="fade_bottom">Bottom fade</string>
     <string name="sort_apps">Order</string>
     <string name="manual">Manual</string>
     <string name="most_used">Most used</string>
@@ -170,7 +171,8 @@
     <string name="help_lock">A PIN that stops other people from changing your home screen.</string>
     <string name="help_updates">Plume checks for a new version once a day. Install it here.</string>
     <string name="help_finish_setup">Home still opens the TV\'s own home screen. Set it to open Plume.</string>
-    <string name="help_photo_fade">Makes the top of your own photos darker, so the clock and the icons stay easy to read.</string>
+    <string name="help_fade_top">Makes the top of your own photos darker, so the clock and the icons stay easy to read. Press Left or Right to change it.</string>
+    <string name="help_fade_bottom">Fades the bottom of your own photos into the background, behind the apps and the Shows row. Press Left or Right to change it.</string>
     <string name="help_location">For the weather, and for sunrise and sunset in Auto. Automatic finds it from your internet address.</string>
     <string name="help_rearrange">Move the apps in the row. You can also hold OK on an app.</string>
     <string name="help_choose_apps">Choose the apps in the row. The others stay in All apps.</string>
