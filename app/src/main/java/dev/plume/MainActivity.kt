@@ -1323,8 +1323,9 @@ class MainActivity : Activity() {
             },
             R.string.light_wallpaper to Triple(getString(R.string.light_wallpaper), wallpaperName(currentWallpaper(false))) { pickWallpaper(false) },
             R.string.dark_wallpaper to Triple(getString(R.string.dark_wallpaper), wallpaperName(currentWallpaper(true))) { pickWallpaper(true) },
-            R.string.fade_top to Triple(getString(R.string.fade_top), "$SLIDER${fade("fade_top")}") { steps[R.string.fade_top]!!(1) },
-            R.string.fade_bottom to Triple(getString(R.string.fade_bottom), "$SLIDER${fade("fade_bottom")}") { steps[R.string.fade_bottom]!!(1) },
+            // Select steps up like Right, and past 100% starts again at 0%.
+            R.string.fade_top to Triple(getString(R.string.fade_top), "$SLIDER${fade("fade_top")}") { steps[R.string.fade_top]!!(if (fade("fade_top") == 100) -100 / FADE_STEP else 1) },
+            R.string.fade_bottom to Triple(getString(R.string.fade_bottom), "$SLIDER${fade("fade_bottom")}") { steps[R.string.fade_bottom]!!(if (fade("fade_bottom") == 100) -100 / FADE_STEP else 1) },
             R.string.folder_photo_changes to Triple(getString(R.string.folder_photo_changes), getString(PHOTO_EVERY[photoEvery()]!!)) { pickPhotoEvery() },
             R.string.sort_apps to Triple(getString(R.string.sort_apps), if (sort == "manual") getString(R.string.manual) else getString(R.string.most_used)) {
                 prefs.edit().putString("sort", if (sort == "manual") "usage" else "manual").apply()
@@ -1618,8 +1619,10 @@ class MainActivity : Activity() {
             if (pct != null) addView(slider(pct), LinearLayout.LayoutParams(dp(SLIDER_DP), dp(14)).apply { marginStart = dp(12) })
             val shown = if (value == TOGGLE_ON || value == TOGGLE_OFF) null else label(text, 13f).apply { secondary(0.6f) }
             if (shown == null) addView(switch(value == TOGGLE_ON), LinearLayout.LayoutParams(dp(36), dp(20)))
+            // A slider's value gets a fixed width, room for "‹  100%  ›", so the slider stays put as it changes and on focus.
+            else if (pct != null) addView(shown.apply { gravity = Gravity.END }, LinearLayout.LayoutParams(dp(SLIDER_VALUE_DP), LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8) })
             else addView(shown, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                if (value.isNotEmpty()) marginStart = dp(if (pct != null) 8 else 16) // room between a long title and its value
+                if (value.isNotEmpty()) marginStart = dp(16) // room between a long title and its value
             })
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
@@ -3436,6 +3439,7 @@ class MainActivity : Activity() {
         const val SLIDER = "\u0000%" // row value drawn as a slider: SLIDER + 0-100
         const val FADE_STEP = 5 // percent per Left/Right on a fade slider
         const val SLIDER_DP = 96 // a slider's width
+        const val SLIDER_VALUE_DP = 72 // width of the value beside a slider
         const val DARK_DIM = 115 // alpha of the black laid over the Bing picture in dark mode (45%)
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait
         const val UNLOCKED_MS = 5 * 60_000L
