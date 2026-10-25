@@ -63,7 +63,7 @@ Measured on a Hisense Google TV (Android 12, 1.8 GB RAM):
 
 ### First-run setup
 
-Plume's settings panel includes two setup rows:
+Until both are on, Plume settings shows a **Finish setup** card at the top. Both rows are also under **Plume settings → Remote & Home button**:
 
 | Setting | What to do |
 |---|---|
@@ -109,22 +109,22 @@ Android 13 and newer grey out the Accessibility switch for apps installed outsid
 
 | Action | How |
 |---|---|
-| Rearrange apps | Hold **OK** on an app, or use **Settings → Edit apps row** |
+| Rearrange apps | Hold **OK** on an app, or use **Plume settings → Apps row → Rearrange apps** |
 | Hide a Continue Watching item | Hold **OK** on its card, then **Remove from Continue Watching** |
 | Remove an app from the row | Hold **OK** on it, then **Remove from row** (it stays in *All apps*) |
-| Choose which apps feed Continue Watching | **Settings → Continue Watching apps** |
+| Choose which apps feed Continue Watching | **Plume settings → Shows row → From apps** |
 | Pin an app from *All apps* to the front | Open **All apps**, hold **OK** on the app (this also unhides it) |
-| Hide apps from the row | **Settings → Apps in row** |
-| Show app names always, on focus or never | **Settings → App names** |
-| Switch between monochrome icons, colour icons and app banners | **Settings → Icon style** |
-| Update Plume | **Settings → Updates** |
-| Change what a remote key does | **Plume settings → Remote keys** |
-| Lock the layout with a PIN | **Settings → Lock layout** |
+| Hide apps from the row | **Plume settings → Apps row → Choose apps** |
+| Show app names always, on focus or never | **Plume settings → Apps row → App names** |
+| Switch between monochrome icons, colour icons and app banners | **Plume settings → Apps row → Icon style** |
+| Update Plume | **Plume settings → Updates** |
+| Change what a remote key does | **Plume settings → Remote & Home button → Remote keys** |
+| Lock the layout with a PIN | **Plume settings → Lock layout** |
 | Open the Google TV dashboard | Hold the **Home** button |
 
 ### Remote keys
 
-**Plume settings → Remote keys → Add a key**, then press the key on your remote. Plume detects it. For each key, choose what a **Press** does and what a **Hold** does:
+**Plume settings → Remote & Home button → Remote keys → Add a key**, then press the key on your remote. Plume detects it. For each key, choose what a **Press** does and what a **Hold** does:
 
 - open an app or an HDMI input (**Open an app or input…**)
 - a media key: Play / Pause, Next, Previous, Stop, Rewind or Fast-forward
@@ -136,7 +136,7 @@ Back, OK, the arrows, Home, Power and the volume keys can't be changed, so the r
 
 ### Custom wallpapers
 
-Open **Light mode wallpaper** or **Dark mode wallpaper** in Plume settings and choose **Add from phone…**. Scan the QR code with your phone (it must be on the same Wi-Fi as the TV), pick a photo and upload it. It becomes the wallpaper straight away. The TV turns it upright, crops it to the screen around its centre and saves a small copy. The upload page only works while that screen is open. **Remove a photo…** in the same list deletes one.
+Open **Plume settings → Wallpaper & theme → Light wallpaper** or **Dark wallpaper** and choose **Add from phone…**. Scan the QR code with your phone (it must be on the same Wi-Fi as the TV), pick a photo and upload it. It becomes the wallpaper straight away. The TV turns it upright, crops it to the screen around its centre and saves a small copy. The upload page only works while that screen is open. **Remove a photo…** in the same list deletes one.
 
 You can also copy `.jpg`, `.png` or `.webp` files to `Android/data/dev.plume/files/wallpapers/` yourself:
 
@@ -144,21 +144,21 @@ You can also copy `.jpg`, `.png` or `.webp` files to `Android/data/dev.plume/fil
 adb push my-wallpaper.jpg /sdcard/Android/data/dev.plume/files/wallpapers/
 ```
 
-A gentle fade is added automatically so the rows stay readable (**Settings → Photo fade** turns it off).
+A gentle fade is added automatically so the rows stay readable (**Plume settings → Wallpaper & theme → Photo fade** turns it off).
 
 ### Photo folders
 
-Choose **Choose a folder on this TV…** in the wallpaper list to use a whole folder of photos, from the TV's storage or a USB drive. Plume asks for access to your photos the first time. The photos take turns in shuffled order; **Settings → Folder photo changes** sets how often, from every minute to once a day. The screensaver can show a folder too: **Settings → Screensaver → Your photos**.
+Choose **Choose a folder on this TV…** in the wallpaper list to use a whole folder of photos, from the TV's storage or a USB drive. Plume asks for access to your photos the first time. The photos take turns in shuffled order; **Plume settings → Wallpaper & theme → Change photo every** sets how often, from every minute to once a day. The screensaver can show a folder too: **Plume settings → Screensaver → Screensaver → Your photos**.
 
 ### Lock layout
 
-**Settings → Lock layout** sets a 4-digit PIN. While it's on, Plume settings and anything that changes the home screen (moving, removing or pinning apps, hiding shows) ask for the PIN first; opening apps works as usual. One PIN unlocks changes for five minutes, until you leave the home screen. Use the arrows or the remote's number keys to enter it.
+**Plume settings → Lock layout** sets a 4-digit PIN. While it's on, Plume settings and anything that changes the home screen (moving, removing or pinning apps, hiding shows) ask for the PIN first; opening apps works as usual. One PIN unlocks changes for five minutes, until you leave the home screen. Use the arrows or the remote's number keys to enter it.
 
 The lock keeps the layout safe, it isn't parental control: apps can still be opened by voice search or from Android settings. Forgot the PIN? **Android Settings → Apps → Plume → Clear data** removes it, along with your layout and settings.
 
 ### Gallery screensaver
 
-Select **Settings → Screensaver** to switch to Gallery. Plume downloads the paintings (4.7 MB) from this repository's releases and stores them privately. Switching back to another screensaver deletes them again, so they only take space while you use them.
+Select **Plume settings → Screensaver → Screensaver** to switch to Gallery. Plume downloads the paintings (4.7 MB) from this repository's releases and stores them privately. Switching back to another screensaver deletes them again, so they only take space while you use them.
 
 ## Privacy
 
@@ -176,13 +176,13 @@ Plume has no analytics, no ads and no account. It only connects to the internet 
 <details>
 <summary><b>The Home button still opens the old home screen</b></summary>
 
-Check that **Settings → Home button** shows **On**. If the app was force-stopped, Android turns its accessibility service off; open Plume once (or grant the optional adb permission above) to restore it.
+Check that **Plume settings → Remote & Home button → Home button** shows **On**. If the app was force-stopped, Android turns its accessibility service off; open Plume once (or grant the optional adb permission above) to restore it.
 </details>
 
 <details>
 <summary><b>Continue Watching is empty</b></summary>
 
-Make sure the TV listings permission is allowed (**Settings → Apps → Plume → Permissions**), and that the app you watch publishes to Android TV's Watch Next list. Check **Settings → Continue Watching apps** in Plume too.
+Make sure the TV listings permission is allowed (**Settings → Apps → Plume → Permissions**), and that the app you watch publishes to Android TV's Watch Next list. Check **Plume settings → Shows row → From apps** in Plume too.
 </details>
 
 <details>

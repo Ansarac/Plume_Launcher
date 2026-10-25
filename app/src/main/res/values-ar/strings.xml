@@ -188,9 +188,7 @@
     <string name="align_right">يمين</string>
     <string name="section_appearance">المظهر</string>
     <string name="section_app_row">صف التطبيقات</string>
-    <string name="section_weather">الطقس</string>
     <string name="section_screensaver">شاشة التوقف</string>
-    <string name="section_home">زر الرئيسية</string>
     <string name="bing_daily">صورة اليوم من Bing</string>
     <string name="sources">المصادر</string>
     <string name="no_signal">لا توجد إشارة</string>

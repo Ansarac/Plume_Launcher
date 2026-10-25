@@ -189,9 +189,7 @@
     <string name="align_right">Droite</string>
     <string name="section_appearance">Apparence</string>
     <string name="section_app_row">Ligne d\'applis</string>
-    <string name="section_weather">Météo</string>
     <string name="section_screensaver">Écran de veille</string>
-    <string name="section_home">Bouton Accueil</string>
     <string name="sources">Sources</string>
     <string name="no_signal">Pas de signal</string>
     <string name="in_row">Dans la ligne</string>
