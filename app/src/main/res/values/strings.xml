@@ -175,7 +175,7 @@
     <string name="help_rearrange">Move the apps in the row. You can also hold OK on an app.</string>
     <string name="help_choose_apps">Choose the apps in the row. The others stay in All apps.</string>
     <string name="help_order">Manual keeps your order. Most used puts the apps you open most at the start.</string>
-    <string name="help_icon_style">Press ◀ ▶ to try each style. The row changes while you press.</string>
+    <string name="help_icon_style">Press ‹ › to try each style. The row changes while you press.</string>
     <string name="help_apps_when_hidden">When the shows row hides, the apps stay in place or move down.</string>
     <string name="help_row_name">The name above the row. Automatic uses the name your apps give it.</string>
     <string name="help_from_apps">Choose the apps that can add shows to this row.</string>

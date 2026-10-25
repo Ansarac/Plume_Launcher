@@ -1418,6 +1418,7 @@ class MainActivity : Activity() {
                 R.string.app_names to listOf(R.string.on_focus, R.string.always, R.string.never).map { getString(it) to null },
                 R.string.row_position to ROW_ALIGN.values.map { getString(it.first) to null },
                 R.string.show_row to ROW_SHOW.values.map { getString(it) to null },
+                R.string.apps_when_hidden to listOf(R.string.stays_put, R.string.moves_down).map { getString(it) to null },
                 R.string.weather_units to listOf("°C" to null, "°F" to null),
             )
             val walls = mapOf(R.string.light_wallpaper to false, R.string.dark_wallpaper to true)
@@ -1818,13 +1819,19 @@ class MainActivity : Activity() {
 
     /** A small picture of a wallpaper (plain ones are their colour), decoded small off the UI thread. */
     private fun wallpaperThumb(choice: String, forDark: Boolean) = ImageView(this).apply {
-        scaleType = ImageView.ScaleType.CENTER_CROP
         background = GradientDrawable().apply {
             cornerRadius = dp(6).toFloat()
-            setColor(if (choice.startsWith("plain:")) (if (forDark) DARK_BG else 0xFFF3F5F7.toInt()) else DARK_SURFACE)
+            setColor(if (choice.startsWith("plain:")) (if (forDark) DARK_BG else 0xFFF3F5F7.toInt()) else if (dark) DARK_SURFACE else 0xFFE4E7EB.toInt())
             setStroke(1, fg and 0xFFFFFF or 0x33000000)
         }
         clipToOutline = true
+        if (!choice.startsWith("plain:")) {
+            // A picture icon while it loads, and if it can't (Bing not downloaded yet, file gone).
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            setImageResource(R.drawable.ic_wallpaper)
+            setColorFilter(fg and 0xFFFFFF or 0x66000000)
+        }
         if (!choice.startsWith("plain:")) io.execute {
             val bmp = try {
                 val small = BitmapFactory.Options().apply { inSampleSize = 16 } // 1920 px wide comes out 120: plenty for 64 dp
@@ -1832,22 +1839,27 @@ class MainActivity : Activity() {
                     choice.startsWith("res:") -> BUNDLED_WALLPAPERS[choice.removePrefix("res:")]?.let { BitmapFactory.decodeResource(resources, it, small) }
                     choice == Bing.CHOICE -> BitmapFactory.decodeFile(Bing.file(this@MainActivity).path, small)
                     choice.startsWith("file:") -> BitmapFactory.decodeFile(File(wallpaperDir(), choice.removePrefix("file:")).path, small)
-                    // A folder shows the photo it's on now; Android has a ready thumbnail for it.
-                    choice.startsWith("folder:") && Build.VERSION.SDK_INT >= 29 -> prefs.getLong(photoKey(forDark), -1).takeIf { it >= 0 }?.let {
-                        contentResolver.loadThumbnail(ContentUris.withAppendedId(PHOTOS, it), android.util.Size(dp(64) * 2, dp(36) * 2), null)
+                    // A folder shows the photo it's on now (the other theme's has none yet: its first photo); Android has a ready thumbnail.
+                    choice.startsWith("folder:") -> (prefs.getLong(photoKey(forDark), -1).takeIf { it >= 0 } ?: folderPhotos(contentResolver, choice).firstOrNull())?.let {
+                        if (Build.VERSION.SDK_INT >= 29) contentResolver.loadThumbnail(ContentUris.withAppendedId(PHOTOS, it), android.util.Size(dp(64) * 2, dp(36) * 2), null)
+                        else @Suppress("DEPRECATION") MediaStore.Images.Thumbnails.getThumbnail(contentResolver, it, MediaStore.Images.Thumbnails.MINI_KIND, null)
                     }
                     else -> null
                 }
             } catch (e: Exception) {
                 null
             }
-            ui.post { setImageBitmap(bmp) }
+            if (bmp != null) ui.post {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setPadding(0, 0, 0, 0)
+                clearColorFilter()
+                setImageBitmap(bmp)
+            }
         }
     }
 
     private fun showHelp(text: String?) = findViewById<TextView>(R.id.settingsHelp).apply {
-        this.text = text
-        visibility = if (text == null) View.GONE else View.VISIBLE
+        this.text = text // the line keeps its 3 lines when empty, so the list above doesn't jump as focus moves
     }
 
     private fun toggle(on: Boolean) = if (on) TOGGLE_ON else TOGGLE_OFF
