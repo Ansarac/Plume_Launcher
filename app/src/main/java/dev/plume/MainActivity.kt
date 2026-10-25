@@ -1452,7 +1452,9 @@ class MainActivity : Activity() {
             time.format(Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 7); set(Calendar.MINUTE, 0) }.time),
             time.format(Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 19); set(Calendar.MINUTE, 0) }.time))
         val city = prefs.getString("geo_city", null).orEmpty().ifEmpty { getString(R.string.your_area) }
-        return when (val d = Sun.day(place.first, place.second, System.currentTimeMillis())) {
+        // Today's noon, not now: just after midnight, now's nearest sun day is still yesterday's.
+        val noon = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 12); set(Calendar.MINUTE, 0) }.timeInMillis
+        return when (val d = Sun.day(place.first, place.second, noon)) {
             Sun.Day.AlwaysUp -> getString(R.string.auto_note_up, city)
             Sun.Day.AlwaysDown -> getString(R.string.auto_note_down, city)
             is Sun.Day.Times -> getString(R.string.auto_note_sun, city, time.format(Date(d.rise)), time.format(Date(d.set)))
