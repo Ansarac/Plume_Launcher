@@ -17,6 +17,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 ## Unreleased
 
 - The app icon on Xiaomi TVs is no longer squashed.
+- A new app icon: a white feather on blue.
 
 ## 1.5.2
 
