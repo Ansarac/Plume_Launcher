@@ -16,6 +16,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- **Set how strong the fades are.** Select **Plume settings → Appearance → Top fade** or **Bottom fade**. Press Left or Right to change the fade from 0% to 100%. The fade on your photo changes while you watch. 0% turns the fade off.
 - **Hide the bottom row.** Select **Plume settings → Bottom row → Show row**. Choose **On Down** to show only the apps and the wallpaper. Press Down to slide the row in, and Up to hide it. Choose **Never** to remove the row. **App row when hidden** keeps the apps in place or moves them down.
 - **Text that fits the wallpaper.** The clock, the date, the weather and the Continue watching text change to white or dark to match the wallpaper behind them. You can read them on a bright photo and on a dark photo.
 - **Less memory.** Plume keeps the wallpaper and the app icons once instead of twice. On a test TV, it uses about 11 MB less.
