@@ -32,13 +32,14 @@
 
     <application
         android:label="Plume"
-        android:banner="@drawable/banner"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
+        <!-- Banner here, not on the application: Xiaomi shows the app banner, squashed, as the icon of the entry below. -->
         <activity
             android:name=".MainActivity"
+            android:banner="@drawable/banner"
             android:exported="true"
             android:launchMode="singleTask"
             android:stateNotNeeded="true"
