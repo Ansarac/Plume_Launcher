@@ -64,7 +64,10 @@
     <string name="banner">Banner</string>
     <string name="banner_mono">Monochrome banner</string>
     <string name="restore_hidden">Hidden shows</string>
-    <string name="show_again">Show %1$d again</string>
+    <plurals name="show_again">
+        <item quantity="one">Show %d again</item>
+        <item quantity="other">Show %d again</item>
+    </plurals>
     <string name="none_hidden">None hidden</string>
     <string name="cw_apps">From apps</string>
     <string name="cw_channels">Channels</string>
