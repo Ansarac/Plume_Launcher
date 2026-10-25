@@ -32,7 +32,9 @@ import android.graphics.Outline
 import android.graphics.PixelFormat
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
+import android.graphics.Path
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
@@ -59,6 +61,7 @@ import android.provider.Settings
 import android.text.InputType
 import android.text.SpannableString
 import android.text.TextUtils
+import android.text.format.DateFormat
 import android.text.style.BulletSpan
 import android.util.LruCache
 import android.view.Gravity
@@ -87,15 +90,24 @@ import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Calendar
+import java.util.Date
 import java.util.concurrent.Executors
 import org.json.JSONObject
 
 /** Light/dark from the launcher's theme setting; shared with the Gallery screensaver. */
 internal fun prefersDark(prefs: SharedPreferences) = when (prefs.getString("theme", "light")) {
     "dark" -> true
-    "auto" -> Calendar.getInstance().get(Calendar.HOUR_OF_DAY) !in 7..18
+    "auto" -> autoDark(sunPlace(prefs), System.currentTimeMillis(), Calendar.getInstance().get(Calendar.HOUR_OF_DAY))
     else -> false
 }
+
+/** The weather's location (found or chosen), kept on the TV: Auto follows the sun there. Null until there is one. */
+internal fun sunPlace(prefs: SharedPreferences) =
+    if (prefs.contains("geo_lat")) prefs.getFloat("geo_lat", 0f).toDouble() to prefs.getFloat("geo_lon", 0f).toDouble() else null
+
+/** Dark from sunset to sunrise at [place]; with no place, from 19:00 to 7:00 as before. */
+internal fun autoDark(place: Pair<Double, Double>?, now: Long, hour: Int) =
+    if (place == null) hour !in 7..18 else Sun.dark(place.first, place.second, now)
 
 /** "1.10" > "1.9" > "1.2.1" > "1.2": compared number by number, missing parts count as 0. */
 internal fun newerVersion(a: String, b: String): Boolean {
@@ -385,7 +397,7 @@ class MainActivity : Activity() {
         ui.post { updateBadge() } // after layout, so the icon has its size
     }
 
-    /** Auto theme flips at 7:00 and 19:00 even while the home screen just sits there. */
+    /** Auto theme flips at sunrise and sunset (or 7:00 and 19:00) even while the home screen just sits there. */
     private val themeTick = object : Runnable {
         override fun run() {
             if (wantDark() != dark) recreate() else ui.postDelayed(this, 60_000L)
@@ -1208,6 +1220,9 @@ class MainActivity : Activity() {
                 setLayerWidth(1, 1)
             }
         findViewById<TextView>(R.id.settingsTitle).setTextColor(fg)
+        for (id in listOf(R.id.settingsCrumb, R.id.settingsHelp)) findViewById<TextView>(id).apply { setTextColor(fg); secondary(0.6f) }
+        settingsScrim.background = spotlight.apply { reset() }
+        pages.clear()
         settingsScrim.visibility = View.VISIBLE
         homeFocusable(false)
     }
@@ -1386,27 +1401,70 @@ class MainActivity : Activity() {
         if (section != null) {
             lastSettings = section.first
             val keys = section.third
-            val note = if (section.first != R.string.section_lock) null else label(getString(R.string.lock_note), 15f).apply {
+            val noteText = when {
+                section.first == R.string.section_lock -> getString(R.string.lock_note)
+                section.first == R.string.section_appearance && theme == "auto" -> autoNote()
+                else -> null
+            }
+            val note = if (noteText == null) null else label(noteText, 15f).apply {
                 maxLines = 5
                 setPadding(dp(14), dp(4), dp(14), dp(10))
             }
-            return showPage(getString(section.first), keys.map { rows[it]!! }, keys.indexOf(at), top = note, steps = keys.map { steps[it] }) {
+            // Two or three choices show side by side; the row's value is the picked one's name.
+            val choices = mapOf(
+                R.string.theme to listOf(R.string.theme_light to R.drawable.ic_sun, R.string.theme_dark to R.drawable.ic_moon,
+                    R.string.theme_auto to R.drawable.ic_auto).map { (s, i) -> getString(s) to i },
+                R.string.sort_apps to listOf(R.string.manual, R.string.most_used).map { getString(it) to null },
+                R.string.app_names to listOf(R.string.on_focus, R.string.always, R.string.never).map { getString(it) to null },
+                R.string.row_position to ROW_ALIGN.values.map { getString(it.first) to null },
+                R.string.show_row to ROW_SHOW.values.map { getString(it) to null },
+                R.string.apps_when_hidden to listOf(R.string.stays_put, R.string.moves_down).map { getString(it) to null },
+                R.string.weather_units to listOf("°C" to null, "°F" to null),
+            )
+            val walls = mapOf(R.string.light_wallpaper to false, R.string.dark_wallpaper to true)
+            val styles = keys.map { k ->
+                val forDark = walls[k]
+                RowStyle(choices = choices[k], help = ROW_HELP[k]?.let { getString(it) }, area = SECTION_AREAS[section.first],
+                    thumb = forDark?.let { currentWallpaper(it) to it }, sub = forDark?.let { wallpaperName(currentWallpaper(it)) })
+            }
+            // A wallpaper row shows its picture and name instead of the name alone.
+            val shown = keys.map { k -> rows[k]!!.let { if (k in walls) page(it.first, "›", it.third) else it } }
+            return showPage(getString(section.first), shown, keys.indexOf(at), top = note, steps = keys.map { steps[it] }, styles = styles,
+                crumb = getString(R.string.plume_settings)) {
                 renderSettings(section.first)
             }
         }
         // Until Home opens Plume one way or the other, a card on top leads to the setup; not after Home was turned off on purpose.
         val top = listOfNotNull(if (homeServiceOn() || isDefaultHome() || prefs.getBoolean("home_off", false)) null
-                else R.string.finish_setup to page(getString(R.string.finish_setup), "${getString(R.string.finish_setup_value)}  ›") {
-                    closeLauncherSettings(); startHomeSetup()
-                }) +
-            sections.map { (key, value, keys) -> key to page(getString(key), "$value  ›") { renderSettings(keys[0]) } } +
-            (R.string.updates to rows[R.string.updates]!!.let { (t, v, a) -> page(t, "$v  ›", a) }) +
+                else Triple(R.string.finish_setup, page(getString(R.string.finish_setup), "›") { closeLauncherSettings(); startHomeSetup() },
+                    RowStyle(R.drawable.ic_home, getString(R.string.finish_setup_value), help = getString(R.string.help_finish_setup)))) +
+            sections.map { (key, value, keys) ->
+                Triple(key, page(getString(key), "›") { renderSettings(keys[0]) }, RowStyle(SECTION_ICONS[key], value, help = ROW_HELP[key]?.let { getString(it) }, area = SECTION_AREAS[key]))
+            } +
+            Triple(R.string.updates, rows[R.string.updates]!!.let { (t, v, a) -> page(t, "›", a) },
+                RowStyle(R.drawable.ic_update, rows[R.string.updates]!!.second, help = getString(R.string.help_updates))) +
             listOfNotNull(if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) null
-                else R.string.preview_home_setup to page(getString(R.string.preview_home_setup)) { closeLauncherSettings(); previewHomeSetup() })
-        showPage(getString(R.string.plume_settings), top.map { it.second }, maxOf(0, top.indexOfFirst { it.first == at }), back = null)
+                else Triple(R.string.preview_home_setup, page(getString(R.string.preview_home_setup)) { closeLauncherSettings(); previewHomeSetup() }, null))
+        showPage(getString(R.string.plume_settings), top.map { it.second }, maxOf(0, top.indexOfFirst { it.first == at }), styles = top.map { it.third }, back = null)
     }
 
     private var lastSettings = 0 // section used last, focused when settings open again
+
+    /** What Auto does here today, under Wallpaper & theme. Times in the TV's 12- or 24-hour format. */
+    private fun autoNote(): String {
+        val time = DateFormat.getTimeFormat(this)
+        val place = sunPlace(prefs) ?: return getString(R.string.auto_note_clock,
+            time.format(Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 7); set(Calendar.MINUTE, 0) }.time),
+            time.format(Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 19); set(Calendar.MINUTE, 0) }.time))
+        val city = prefs.getString("geo_city", null).orEmpty().ifEmpty { getString(R.string.your_area) }
+        // Today's noon, not now: just after midnight, now's nearest sun day is still yesterday's.
+        val noon = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 12); set(Calendar.MINUTE, 0) }.timeInMillis
+        return when (val d = Sun.day(place.first, place.second, noon)) {
+            Sun.Day.AlwaysUp -> getString(R.string.auto_note_up, city)
+            Sun.Day.AlwaysDown -> getString(R.string.auto_note_down, city)
+            is Sun.Day.Times -> getString(R.string.auto_note_sun, city, time.format(Date(d.rise)), time.format(Date(d.set)))
+        }
+    }
 
     private fun <T> List<T>.step(current: T, dir: Int) = this[((indexOf(current) + dir) % size + size) % size]
 
@@ -1419,18 +1477,37 @@ class MainActivity : Activity() {
     private fun page(title: String, value: String = "", action: () -> Unit) = Triple(title, value, action)
 
     private fun showPage(title: String, rows: List<Triple<String, String, () -> Unit>>, focus: Int = 0, top: View? = null,
-                         steps: List<((Int) -> Unit)?> = emptyList(), back: (() -> Unit)?) {
+                         steps: List<((Int) -> Unit)?> = emptyList(), styles: List<RowStyle?> = emptyList(), crumb: String? = null,
+                         back: (() -> Unit)?) {
         pageExit?.invoke()
         pageExit = null
         pageBack = back
+        // Deeper pages slide in from the right, ones already visited (Back) from the left; a redraw of the same page stays put.
+        // With the crumb, so a section and a page inside it with the same name (Screensaver) count as two pages.
+        val key = "$crumb › $title"
+        val dir = when {
+            pages.lastOrNull() == key -> 0
+            key in pages -> -1.also { while (pages.last() != key) pages.removeAt(pages.size - 1) }
+            else -> (if (pages.isEmpty()) 0 else 1).also { pages.add(key) }
+        }
+        if (dir != 0) for (v in listOf<View>(settingsList, findViewById(R.id.settingsTitle), findViewById(R.id.settingsCrumb))) {
+            v.translationX = dp(32) * dir.toFloat()
+            v.alpha = 0f
+            v.animate().translationX(0f).alpha(1f).setDuration(200).setInterpolator(DECELERATE).start()
+        }
         findViewById<TextView>(R.id.settingsTitle).text = title
+        findViewById<TextView>(R.id.settingsCrumb).apply {
+            text = crumb?.let { "$it  ›" }
+            visibility = if (crumb == null) View.GONE else View.VISIBLE
+        }
+        showHelp(null)
         settingsList.removeAllViews()
         top?.let { settingsList.addView(it) }
         val first = settingsList.childCount
         rows.forEachIndexed { i, (name, value, action) ->
-            settingsList.addView(settingsRow(name, value, steps.getOrNull(i), action), LinearLayout.LayoutParams(MATCH_PARENT, dp(44)).apply {
-                topMargin = dp(4)
-            })
+            val style = styles.getOrNull(i)
+            settingsList.addView(settingsRow(name, value, steps.getOrNull(i), style, action),
+                LinearLayout.LayoutParams(MATCH_PARENT, dp(if (style?.sub != null) 54 else 48)).apply { topMargin = dp(4) })
         }
         // Focus wraps: Up from the first row goes to the last, Down from the last to the first.
         (settingsList.parent as View).scrollTo(0, 0)
@@ -1471,8 +1548,10 @@ class MainActivity : Activity() {
             }
             pinFails = 0
             unlockedUntil = now + UNLOCKED_MS
+            val under = pages.dropLast(1) // the pages below the PIN; if then() opens the panel again, Back still slides left
             closeLauncherSettings()
             then()
+            if (settingsScrim.visibility == View.VISIBLE) pages.addAll(0, under)
             null
         }
     }
@@ -1576,7 +1655,93 @@ class MainActivity : Activity() {
     }
 
     /** A settings row; with [step], Left and Right change its value in place, and ‹ › show that while focused. */
-    private fun settingsRow(title: String, value: String, step: ((Int) -> Unit)? = null, action: () -> Unit): View {
+    private val pages = ArrayList<String>() // crumb and title of the settings pages open, from the main list down
+    private val spotlight by lazy { Spotlight() }
+
+    /**
+     * The settings panel's dim over the home screen, with a soft window over [area]'s part of it: the part the
+     * selected section changes. It glides from part to part; null dims evenly. Animators follow the TV's animation scale.
+     */
+    private inner class Spotlight : Drawable() {
+        private val hole = RectF()
+        private var open = 0f // 0: even dim, 1: the window fully clear
+        private var anim: ValueAnimator? = null
+        private val path = Path()
+
+        fun reset() {
+            anim?.cancel()
+            open = 0f
+            invalidateSelf()
+        }
+
+        fun show(target: RectF?) {
+            anim?.cancel()
+            val from = RectF(hole)
+            val fromOpen = open
+            // Coming from an even dim, the window opens in place rather than flying in from the last spot.
+            if (target != null && open == 0f) from.set(target)
+            anim = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 260
+                interpolator = DECELERATE
+                addUpdateListener { a ->
+                    val t = a.animatedValue as Float
+                    if (target != null) hole.set(from.left + (target.left - from.left) * t, from.top + (target.top - from.top) * t,
+                        from.right + (target.right - from.right) * t, from.bottom + (target.bottom - from.bottom) * t)
+                    open = fromOpen + ((if (target == null) 0f else 1f) - fromOpen) * t
+                    invalidateSelf()
+                }
+                start()
+            }
+        }
+
+        override fun draw(c: Canvas) {
+            val dim = SCRIM_ALPHA shl 24
+            if (open == 0f) return c.drawColor(dim)
+            path.reset()
+            path.addRoundRect(hole, dp(16).toFloat(), dp(16).toFloat(), Path.Direction.CW)
+            c.save()
+            c.clipOutPath(path)
+            c.drawColor(dim)
+            c.restore()
+            c.save()
+            c.clipPath(path)
+            c.drawColor((SCRIM_ALPHA * (1 - open)).toInt() shl 24) // the window clears as it opens
+            c.restore()
+        }
+
+        override fun setAlpha(a: Int) {}
+        override fun setColorFilter(f: ColorFilter?) {}
+        @Deprecated("Deprecated in Java") override fun getOpacity() = PixelFormat.TRANSLUCENT
+    }
+
+    /** Where [area] sits on the screen, with some room around it; null when it has no part on screen. */
+    private fun areaBounds(area: Int?): RectF? {
+        val views = when (area) {
+            // Past the edges by the window's corner radius, so the round corners fall off screen and no corner stays dim.
+            AREA_ALL -> return RectF(0f, 0f, settingsScrim.width.toFloat(), settingsScrim.height.toFloat()).apply { inset(-dp(16).toFloat(), -dp(16).toFloat()) }
+            AREA_CLOCK -> listOf(findViewById<View>(R.id.clock).parent as View)
+            AREA_APPS -> listOf(findViewById(R.id.appScroll))
+            // "On Down" hides the row by sliding it out, still VISIBLE, so isShown below can't tell.
+            AREA_SHOWS -> if (rowShow() == "down" && !rowOut) return null
+                else listOf(findViewById(R.id.watchTitle), findViewById<View>(R.id.watchScroll))
+            else -> return null
+        }.filter { it.isShown && it.height > 0 }
+        if (views.isEmpty()) return null
+        val at = IntArray(2)
+        settingsScrim.getLocationInWindow(at)
+        val (ox, oy) = at[0] to at[1]
+        return views.map { v -> v.getLocationInWindow(at); RectF((at[0] - ox).toFloat(), (at[1] - oy).toFloat(), (at[0] - ox + v.width).toFloat(), (at[1] - oy + v.height).toFloat()) }
+            .reduce { a, b -> a.apply { union(b) } }.apply { inset(-dp(14).toFloat(), -dp(10).toFloat()) }
+    }
+
+    /**
+     * Extras for a settings row: an [icon] in front, a second line ([sub]), [choices] shown side by side (name and
+     * icon; the row's value says which is picked), a wallpaper picture ([thumb], a wallpaper choice) and a [help] line.
+     */
+    private class RowStyle(val icon: Int? = null, val sub: String? = null, val choices: List<Pair<String, Int?>>? = null,
+                           val thumb: Pair<String, Boolean>? = null, val help: String? = null, val area: Int? = null)
+
+    private fun settingsRow(title: String, value: String, step: ((Int) -> Unit)? = null, style: RowStyle? = null, action: () -> Unit): View {
         val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0, 0)).apply { cornerRadius = dp(8).toFloat() }
         return LinearLayout(this).apply {
             id = View.generateViewId()
@@ -1586,13 +1751,24 @@ class MainActivity : Activity() {
             background = bg
             isFocusable = true
             isClickable = true
-            val name = label(title, 14f).apply { if (dark) setTextColor(DARK_TEXT_2) }
-            addView(name, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            val shown = if (value == TOGGLE_ON || value == TOGGLE_OFF) null else label(value, 13f).apply { secondary(0.6f) }
-            if (shown == null) addView(switch(value == TOGGLE_ON), LinearLayout.LayoutParams(dp(36), dp(20)))
-            else addView(shown, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                if (value.isNotEmpty()) marginStart = dp(16) // room between a long title and its value
-            })
+            val icon = style?.icon?.let { res -> ImageView(context).apply { setImageResource(res); setColorFilter(if (dark) DARK_TEXT_2 else fg); if (!dark) alpha = 0.7f } }
+            icon?.let { addView(it, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(14) }) }
+            val name = label(title, 15f).apply { if (dark) setTextColor(DARK_TEXT_2) }
+            addView(style?.sub?.let { sub ->
+                LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(name)
+                    addView(label(sub, 13f).apply { secondary(0.6f) })
+                }
+            } ?: name, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            val shown = if (style?.choices != null || value == TOGGLE_ON || value == TOGGLE_OFF) null else label(value, 14f).apply { secondary(0.6f) }
+            val wrap = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            style?.thumb?.let { (choice, forDark) -> addView(wallpaperThumb(choice, forDark), LinearLayout.LayoutParams(dp(64), dp(36)).apply { marginStart = dp(12) }) }
+            when {
+                style?.choices != null -> addView(choices(style.choices, value), wrap.apply { marginStart = dp(12) })
+                shown == null -> addView(switch(value == TOGGLE_ON), LinearLayout.LayoutParams(dp(36), dp(20)))
+                else -> addView(shown, wrap.apply { if (value.isNotEmpty()) marginStart = dp(16) }) // room between a long title and its value
+            }
             setOnClickListener { action() }
             setOnFocusChangeListener { _, focused ->
                 // Focus: a lit rimCard in dark (and the title brightens), a white pill in light.
@@ -1602,12 +1778,89 @@ class MainActivity : Activity() {
                 if (dark) ValueAnimator.ofArgb(name.currentTextColor, if (focused) DARK_TEXT else DARK_TEXT_2).apply {
                     duration = 160
                     interpolator = DECELERATE
-                    addUpdateListener { name.setTextColor(it.animatedValue as Int) }
+                    addUpdateListener { a ->
+                        val c = a.animatedValue as Int
+                        name.setTextColor(c)
+                        icon?.setColorFilter(c)
+                    }
                 }.start()
                 if (step != null) shown?.text = if (focused) "‹  $value  ›" else value
+                if (focused) {
+                    showHelp(style?.help)
+                    // Posted: when the panel first opens, the scrim has no size yet in this frame.
+                    settingsScrim.post { if (hasFocus()) spotlight.show(areaBounds(style?.area)) }
+                }
             }
             tag = step // dispatchKeyEvent calls it for Left (-1) and Right (+1)
         }
+    }
+
+    /** Every choice in a row at once, the picked one filled; Left and Right still step through them. */
+    private fun choices(options: List<Pair<String, Int?>>, picked: String) = LinearLayout(this).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(dp(2), dp(2), dp(2), dp(2))
+        background = GradientDrawable().apply {
+            cornerRadius = dp(8).toFloat()
+            setStroke(1, fg and 0xFFFFFF or 0x33000000)
+        }
+        for ((text, iconRes) in options) addView(label(text, 13f).apply {
+            val on = text == picked
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(3), dp(8), dp(3))
+            if (on) {
+                setTextColor(if (dark) DARK_BG else Color.WHITE)
+                background = GradientDrawable().apply { cornerRadius = dp(6).toFloat(); setColor(if (dark) DARK_TEXT else fg) }
+            } else secondary(0.6f)
+            iconRes?.let { res ->
+                setCompoundDrawablesRelative(getDrawable(res)!!.mutate().apply { setBounds(0, 0, dp(14), dp(14)); setTint(currentTextColor) }, null, null, null)
+                compoundDrawablePadding = dp(4)
+            }
+        })
+    }
+
+    /** A small picture of a wallpaper (plain ones are their colour), decoded small off the UI thread. */
+    private fun wallpaperThumb(choice: String, forDark: Boolean) = ImageView(this).apply {
+        background = GradientDrawable().apply {
+            cornerRadius = dp(6).toFloat()
+            setColor(if (choice.startsWith("plain:")) (if (forDark) DARK_BG else 0xFFF3F5F7.toInt()) else if (dark) DARK_SURFACE else 0xFFE4E7EB.toInt())
+            setStroke(1, fg and 0xFFFFFF or 0x33000000)
+        }
+        clipToOutline = true
+        if (!choice.startsWith("plain:")) {
+            // A picture icon while it loads, and if it can't (Bing not downloaded yet, file gone).
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            setImageResource(R.drawable.ic_wallpaper)
+            setColorFilter(fg and 0xFFFFFF or 0x66000000)
+        }
+        if (!choice.startsWith("plain:")) io.execute {
+            val bmp = try {
+                val small = BitmapFactory.Options().apply { inSampleSize = 16 } // 1920 px wide comes out 120: plenty for 64 dp
+                when {
+                    choice.startsWith("res:") -> BUNDLED_WALLPAPERS[choice.removePrefix("res:")]?.let { BitmapFactory.decodeResource(resources, it, small) }
+                    choice == Bing.CHOICE -> BitmapFactory.decodeFile(Bing.file(this@MainActivity).path, small)
+                    choice.startsWith("file:") -> BitmapFactory.decodeFile(File(wallpaperDir(), choice.removePrefix("file:")).path, small)
+                    // A folder shows the photo it's on now (the other theme's has none yet: its first photo); Android has a ready thumbnail.
+                    choice.startsWith("folder:") -> (prefs.getLong(photoKey(forDark), -1).takeIf { it >= 0 } ?: folderPhotos(contentResolver, choice).firstOrNull())?.let {
+                        if (Build.VERSION.SDK_INT >= 29) contentResolver.loadThumbnail(ContentUris.withAppendedId(PHOTOS, it), android.util.Size(dp(64) * 2, dp(36) * 2), null)
+                        else @Suppress("DEPRECATION") MediaStore.Images.Thumbnails.getThumbnail(contentResolver, it, MediaStore.Images.Thumbnails.MINI_KIND, null)
+                    }
+                    else -> null
+                }
+            } catch (e: Exception) {
+                null
+            }
+            if (bmp != null) ui.post {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setPadding(0, 0, 0, 0)
+                clearColorFilter()
+                setImageBitmap(bmp)
+            }
+        }
+    }
+
+    private fun showHelp(text: String?) = findViewById<TextView>(R.id.settingsHelp).apply {
+        this.text = text // the line keeps its 3 lines when empty, so the list above doesn't jump as focus moves
     }
 
     private fun toggle(on: Boolean) = if (on) TOGGLE_ON else TOGGLE_OFF
@@ -3370,6 +3623,37 @@ class MainActivity : Activity() {
             "left" to (R.string.align_left to Gravity.START),
             "centre" to (R.string.align_centre to Gravity.CENTER_HORIZONTAL),
             "right" to (R.string.align_right to Gravity.END),
+        )
+        const val SCRIM_ALPHA = 0x99 // the settings panel's dim over the home screen
+        const val AREA_ALL = 0
+        const val AREA_CLOCK = 1
+        const val AREA_APPS = 2
+        const val AREA_SHOWS = 3
+        /** The part of the home screen each section changes, lit by the spotlight; other sections dim it all. */
+        val SECTION_AREAS = mapOf(
+            R.string.section_appearance to AREA_ALL, R.string.section_clock_weather to AREA_CLOCK,
+            R.string.section_app_row to AREA_APPS, R.string.bottom_row to AREA_SHOWS,
+        )
+        val SECTION_ICONS = mapOf(
+            R.string.section_appearance to R.drawable.ic_wallpaper, R.string.section_clock_weather to R.drawable.ic_clock,
+            R.string.section_app_row to R.drawable.ic_apps, R.string.bottom_row to R.drawable.ic_shows,
+            R.string.section_screensaver to R.drawable.ic_screensaver, R.string.section_remote_home to R.drawable.ic_remote,
+            R.string.section_lock to R.drawable.ic_lock,
+        )
+        /** The help line shown at the bottom of Plume settings while a row is selected. */
+        val ROW_HELP = mapOf(
+            R.string.section_appearance to R.string.help_appearance, R.string.section_clock_weather to R.string.help_clock_weather,
+            R.string.section_app_row to R.string.help_apps_row, R.string.bottom_row to R.string.help_shows_row,
+            R.string.section_screensaver to R.string.help_screensaver, R.string.section_remote_home to R.string.help_remote_home,
+            R.string.section_lock to R.string.help_lock,
+            R.string.photo_fade to R.string.help_photo_fade, R.string.weather_location to R.string.help_location,
+            R.string.edit_apps_row to R.string.help_rearrange, R.string.apps_in_row to R.string.help_choose_apps,
+            R.string.sort_apps to R.string.help_order, R.string.icon_style to R.string.help_icon_style,
+            R.string.apps_when_hidden to R.string.help_apps_when_hidden, R.string.row_name to R.string.help_row_name,
+            R.string.cw_apps to R.string.help_from_apps, R.string.cw_channels to R.string.help_channels,
+            R.string.restore_hidden to R.string.help_hidden_shows, R.string.screensaver_timing to R.string.help_start_after,
+            R.string.home_button to R.string.help_home_button, R.string.default_launcher to R.string.help_default_launcher,
+            R.string.setup_home to R.string.help_run_setup, R.string.section_keys to R.string.help_remote_keys,
         )
         val ROW_SHOW = linkedMapOf("always" to R.string.always, "down" to R.string.on_down, "never" to R.string.never) // "Show row"
         const val BADGE = 0xFFFF453A.toInt()
