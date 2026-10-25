@@ -1485,7 +1485,7 @@ class MainActivity : Activity() {
             title in pages -> -1.also { while (pages.last() != title) pages.removeAt(pages.size - 1) }
             else -> (if (pages.isEmpty()) 0 else 1).also { pages.add(title) }
         }
-        if (dir != 0) for (v in listOf(settingsList, findViewById(R.id.settingsTitle), findViewById(R.id.settingsCrumb))) {
+        if (dir != 0) for (v in listOf<View>(settingsList, findViewById(R.id.settingsTitle), findViewById(R.id.settingsCrumb))) {
             v.translationX = dp(32) * dir.toFloat()
             v.alpha = 0f
             v.animate().translationX(0f).alpha(1f).setDuration(200).setInterpolator(DECELERATE).start()
