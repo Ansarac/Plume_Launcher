@@ -1245,6 +1245,8 @@ class MainActivity : Activity() {
             R.string.icon_style to { d ->
                 prefs.edit().putString("icon_style", ICON_STYLES.keys.toList().step(iconStyle(), d)).apply()
                 renderApps()
+                watchKey = null // rebuild the cards so their source icons follow the new style
+                showWatchNext(watchList)
                 renderSettings(R.string.icon_style)
             },
             R.string.theme to { d ->
@@ -3016,12 +3018,13 @@ class MainActivity : Activity() {
         refreshWatchNext()
     }
 
-    /** Small source-app mark for the details line: black logo when we have one, else greyscale icon. */
+    /** Small source-app mark for the details line: the app's own icon with colour app icons, else its mono logo or a greyscale icon. */
     private fun sourceIcon(pkg: String?): Drawable? {
         if (pkg == null) return null
-        LOGOS[pkg]?.takeIf { !it.second }?.let { return getDrawable(it.first)!!.mutate().apply { setTint(fg) } }
+        val colour = colourIcons()
+        if (!colour) LOGOS[pkg]?.takeIf { !it.second }?.let { return getDrawable(it.first)!!.mutate().apply { setTint(fg) } }
         return try {
-            packageManager.getApplicationIcon(pkg).mutate().apply { colorFilter = GREYSCALE }
+            packageManager.getApplicationIcon(pkg).mutate().apply { if (!colour) colorFilter = GREYSCALE }
         } catch (e: PackageManager.NameNotFoundException) {
             null
         }
