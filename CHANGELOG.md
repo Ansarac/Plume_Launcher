@@ -32,6 +32,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - **Plume settings → Apps row → Icon style** has a new choice, **Banner**. Each app shows its own picture, as on Apple TV. An app with no banner gets its own colour behind a white mark. Monochrome stays the default.
 - **Plume settings → Apps row → Icon style** has a fourth choice, **Monochrome banner**. The pictures are grey until you select one. An app with no banner gets its own colour behind a white mark, as with **Banner**.
 - **New order in Plume settings.** The sections follow the home screen from top to bottom: **Wallpaper & theme**, **Clock & weather**, **Apps row** and **Shows row**. Then come **Screensaver**, **Remote & Home button**, **Lock layout** and **Updates**. Some settings have shorter names. Your settings do not change. If Home does not open Plume yet, a **Finish setup** card shows at the top.
+- Plume shows in the app list on Xiaomi TVs. It also shows in other launchers that show only phone apps.
 
 ## 1.5
 
