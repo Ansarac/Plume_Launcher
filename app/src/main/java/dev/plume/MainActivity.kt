@@ -1480,10 +1480,12 @@ class MainActivity : Activity() {
         pageExit = null
         pageBack = back
         // Deeper pages slide in from the right, ones already visited (Back) from the left; a redraw of the same page stays put.
+        // With the crumb, so a section and a page inside it with the same name (Screensaver) count as two pages.
+        val key = "$crumb › $title"
         val dir = when {
-            pages.lastOrNull() == title -> 0
-            title in pages -> -1.also { while (pages.last() != title) pages.removeAt(pages.size - 1) }
-            else -> (if (pages.isEmpty()) 0 else 1).also { pages.add(title) }
+            pages.lastOrNull() == key -> 0
+            key in pages -> -1.also { while (pages.last() != key) pages.removeAt(pages.size - 1) }
+            else -> (if (pages.isEmpty()) 0 else 1).also { pages.add(key) }
         }
         if (dir != 0) for (v in listOf<View>(settingsList, findViewById(R.id.settingsTitle), findViewById(R.id.settingsCrumb))) {
             v.translationX = dp(32) * dir.toFloat()
@@ -1543,8 +1545,10 @@ class MainActivity : Activity() {
             }
             pinFails = 0
             unlockedUntil = now + UNLOCKED_MS
+            val under = pages.dropLast(1) // the pages below the PIN; if then() opens the panel again, Back still slides left
             closeLauncherSettings()
             then()
+            if (settingsScrim.visibility == View.VISIBLE) pages.addAll(0, under)
             null
         }
     }
@@ -1648,7 +1652,7 @@ class MainActivity : Activity() {
     }
 
     /** A settings row; with [step], Left and Right change its value in place, and ‹ › show that while focused. */
-    private val pages = ArrayList<CharSequence>() // titles of the settings pages open, from the main list down
+    private val pages = ArrayList<String>() // crumb and title of the settings pages open, from the main list down
     private val spotlight by lazy { Spotlight() }
 
     /**
@@ -1710,10 +1714,13 @@ class MainActivity : Activity() {
     /** Where [area] sits on the screen, with some room around it; null when it has no part on screen. */
     private fun areaBounds(area: Int?): RectF? {
         val views = when (area) {
-            AREA_ALL -> return RectF(0f, 0f, settingsScrim.width.toFloat(), settingsScrim.height.toFloat())
+            // Past the edges by the window's corner radius, so the round corners fall off screen and no corner stays dim.
+            AREA_ALL -> return RectF(0f, 0f, settingsScrim.width.toFloat(), settingsScrim.height.toFloat()).apply { inset(-dp(16).toFloat(), -dp(16).toFloat()) }
             AREA_CLOCK -> listOf(findViewById<View>(R.id.clock).parent as View)
             AREA_APPS -> listOf(findViewById(R.id.appScroll))
-            AREA_SHOWS -> listOf(findViewById(R.id.watchTitle), findViewById<View>(R.id.watchScroll))
+            // "On Down" hides the row by sliding it out, still VISIBLE, so isShown below can't tell.
+            AREA_SHOWS -> if (rowShow() == "down" && !rowOut) return null
+                else listOf(findViewById(R.id.watchTitle), findViewById<View>(R.id.watchScroll))
             else -> return null
         }.filter { it.isShown && it.height > 0 }
         if (views.isEmpty()) return null
