@@ -63,7 +63,7 @@ Measured on a Hisense Google TV (Android 12, 1.8 GB RAM):
 
 ### First-run setup
 
-Until both are on, Plume settings shows a **Finish setup** card at the top. Both rows are also under **Plume settings → Remote & Home button**:
+Until one of them is on, Plume settings shows a **Finish setup** card at the top. Both rows are also under **Plume settings → Remote & Home button**:
 
 | Setting | What to do |
 |---|---|

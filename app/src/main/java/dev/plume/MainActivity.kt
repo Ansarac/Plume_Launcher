@@ -1300,7 +1300,7 @@ class MainActivity : Activity() {
             R.string.icon_style to Triple(getString(R.string.icon_style), getString(ICON_STYLES.getValue(iconStyle()))) {
                 steps[R.string.icon_style]!!(1)
             },
-            R.string.restore_hidden to Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else getString(R.string.show_again, hidden)) {
+            R.string.restore_hidden to Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else resources.getQuantityString(R.plurals.show_again, hidden, hidden)) {
                 prefs.edit().remove("hidden_watch").apply()
                 watchKey = null
                 refreshWatchNext()
