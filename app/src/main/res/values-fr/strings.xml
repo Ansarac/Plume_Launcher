@@ -3,7 +3,6 @@
     <string name="delete_photo">Supprimer « %1$s » ?</string>
     <string name="photo_added">« %1$s » ajoutée. Envoyez-en une autre ou appuyez sur Terminé.</string>
     <string name="n_of_m">%1$d sur %2$d</string>
-    <string name="n_hidden">%1$d masqués</string>
     <string name="n_off">%1$d désactivées</string>
     <string name="update_available_row">%1$s disponible</string>
     <string name="up_to_date_row">À jour (%1$s)</string>

@@ -1300,7 +1300,7 @@ class MainActivity : Activity() {
             R.string.icon_style to Triple(getString(R.string.icon_style), getString(ICON_STYLES.getValue(iconStyle()))) {
                 steps[R.string.icon_style]!!(1)
             },
-            R.string.restore_hidden to Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else getString(R.string.n_hidden, hidden)) {
+            R.string.restore_hidden to Triple(getString(R.string.restore_hidden), if (hidden == 0) getString(R.string.none_hidden) else getString(R.string.show_again, hidden)) {
                 prefs.edit().remove("hidden_watch").apply()
                 watchKey = null
                 refreshWatchNext()
@@ -1394,8 +1394,8 @@ class MainActivity : Activity() {
                 renderSettings(section.first)
             }
         }
-        // Until Home opens Plume, a card on top leads to the setup.
-        val top = listOfNotNull(if (homeServiceOn() && isDefaultHome()) null
+        // Until Home opens Plume one way or the other, a card on top leads to the setup; not after Home was turned off on purpose.
+        val top = listOfNotNull(if (homeServiceOn() || isDefaultHome() || prefs.getBoolean("home_off", false)) null
                 else R.string.finish_setup to page(getString(R.string.finish_setup), "${getString(R.string.finish_setup_value)}  ›") {
                     closeLauncherSettings(); startHomeSetup()
                 }) +
