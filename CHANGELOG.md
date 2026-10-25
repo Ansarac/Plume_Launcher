@@ -14,7 +14,7 @@ Write every entry in ASD-STE100 Simplified Technical English:
 
 Put changes that are not released under `## Unreleased`. Rename that heading to the version number when you release.
 
-## Unreleased
+## 1.5.3
 
 - The app icon on Xiaomi TVs is no longer squashed.
 - A new app icon: a white feather on blue.
