@@ -252,6 +252,9 @@ class MainActivity : Activity() {
     private lateinit var watchTitle: TextView
     private val appsTitle by lazy { findViewById<TextView>(R.id.appsTitle) }
     private lateinit var watchScroll: View
+    private val appScroll by lazy { findViewById<View>(R.id.appScroll) }
+    private var titleAlpha = 1f // the row title's own alpha from the layout, read before placeRow fades it
+    private var rowOut = false // "Show row: On Down": the bottom row has focus, so it's slid in
     private lateinit var allApps: View
     private lateinit var allAppsGrid: GridLayout
     private lateinit var wifi: ImageView
@@ -295,6 +298,7 @@ class MainActivity : Activity() {
         appRow = findViewById(R.id.appRow)
         watchRow = findViewById(R.id.watchRow)
         watchTitle = findViewById(R.id.watchTitle)
+        titleAlpha = watchTitle.alpha
         watchScroll = findViewById(R.id.watchScroll)
         allApps = findViewById(R.id.allApps)
         allAppsGrid = findViewById(R.id.allAppsGrid)
@@ -302,6 +306,14 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.sourcesButton).visibility = if (sources.isEmpty()) View.GONE else View.VISIBLE
         applyTheme()
         loadWallpaper()
+        // "Show row: On Down": the row slides in while one of its cards has focus, however focus got there.
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, now ->
+            val out = rowShow() == "down" && now?.getTag(R.id.watchRow) is Prog
+            if (out != rowOut) { rowOut = out; placeRow(animate = true) }
+        }
+        watchScroll.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            if (top != oldTop || bottom != oldBottom) placeRow(animate = false) // the drop is measured from the layout
+        }
 
         // Top bar: network, All apps, Android settings, launcher settings. Round, lit on focus.
         for ((id, action) in listOf<Pair<Int, () -> Unit>>(
@@ -313,10 +325,12 @@ class MainActivity : Activity() {
         )) findViewById<ImageView>(id).apply {
             setColorFilter(fg)
             val ring = GradientDrawable().apply { shape = GradientDrawable.OVAL }
+            // Lit, the icon sits on its ring, so it takes the theme colour; otherwise it's on the wallpaper (see fitInk).
             background = ring
             setOnFocusChangeListener { v, focused ->
                 if (focused) lastTop = v
                 ring.setColor(if (!focused) 0 else if (dark) DARK_CARD_LIT[0] else Color.WHITE)
+                setColorFilter(if (focused) fg else iconInk)
                 animate().scaleX(if (focused) 1.15f else 1f).scaleY(if (focused) 1.15f else 1f)
                     .setDuration(160).setInterpolator(DECELERATE).start()
             }
@@ -743,7 +757,78 @@ class MainActivity : Activity() {
         for (id in intArrayOf(R.id.clock, R.id.date, R.id.appsTitle, R.id.watchTitle, R.id.allAppsTitle, R.id.rowLabel, R.id.weather)) {
             findViewById<TextView>(id).setTextColor(fg)
         }
-        wifi.setColorFilter(fg)
+        iconInk = fg
+        for (v in topIcons()) v.setColorFilter(if (v.isFocused) fg else iconInk)
+        watchInk = fg
+    }
+
+    // ---------- text over the wallpaper ----------
+    // The wallpaper can be any photo, so the theme's text colour can vanish into it. A tiny copy of the wallpaper is
+    // kept, and the clock block and the Continue watching text each take white or near-black, whichever stands out
+    // more from the pixels right behind them. Plain wallpapers keep the theme's colour.
+
+    private var wpThumb: Bitmap? = null
+    private var watchInk = Color.BLACK
+    private var iconInk = Color.BLACK
+
+    private fun topIcons() = listOf(R.id.wifi, R.id.sourcesButton, R.id.allAppsButton, R.id.systemSettings, R.id.launcherSettings)
+        .map { findViewById<ImageView>(it) }
+
+    private fun fitInk() {
+        val top = listOf(R.id.clock, R.id.date, R.id.weather).map { findViewById<TextView>(it) }
+        val topInk = inkBehind(top)
+        for (v in top) ink(v, topInk, fade = true)
+        val icons = topIcons()
+        iconInk = inkBehind(icons)
+        for (v in icons) if (!v.isFocused) v.setColorFilter(iconInk)
+        val apps = listOf(R.id.appsTitle, R.id.rowLabel).map { findViewById<TextView>(it) }
+        val appsInk = inkBehind(apps)
+        for (v in apps) ink(v, appsInk, fade = true)
+        val watch = listOf(watchTitle) + (0 until watchRow.childCount).flatMap { i ->
+            (watchRow.getChildAt(i) as ViewGroup).let { col -> (0 until col.childCount).mapNotNull { col.getChildAt(it) as? TextView } }
+        }
+        watchInk = inkBehind(watch)
+        for (v in watch) ink(v, watchInk, fade = true)
+    }
+
+    /** White or near-black, by the average brightness of the wallpaper under [views]; the theme colour without a photo. */
+    private fun inkBehind(views: List<View>): Int {
+        val t = wpThumb ?: return fg
+        val wall = findViewById<View>(R.id.wallpaper)
+        val at = IntArray(2)
+        wall.getLocationInWindow(at)
+        val (wx, wy) = at[0] to at[1]
+        val r = Rect()
+        for (v in views) if (v.isShown && v.width > 0) {
+            v.getLocationInWindow(at)
+            r.union(at[0] - wx, at[1] - wy, at[0] - wx + v.width, at[1] - wy + v.height)
+        }
+        if (r.isEmpty || wall.width == 0) return fg
+        // The wallpaper is centre-cropped: scaled to cover the screen, centred.
+        val s = maxOf(wall.width.toFloat() / t.width, wall.height.toFloat() / t.height)
+        val dx = (wall.width - t.width * s) / 2
+        val dy = (wall.height - t.height * s) / 2
+        fun tx(x: Int) = ((x - dx) / s).toInt().coerceIn(0, t.width - 1)
+        fun ty(y: Int) = ((y - dy) / s).toInt().coerceIn(0, t.height - 1)
+        var sum = 0f
+        var n = 0
+        for (y in ty(r.top)..ty(r.bottom)) for (x in tx(r.left)..tx(r.right)) {
+            sum += Color.luminance(t.getPixel(x, y))
+            n++
+        }
+        return inkFor(sum / n)
+    }
+
+    /** Text colour plus a soft shadow in the opposite colour, so it holds on busy photos too. */
+    private fun ink(v: TextView, color: Int, fade: Boolean = false) {
+        if (wpThumb == null) v.setShadowLayer(0f, 0f, 0f, 0)
+        else v.setShadowLayer(dp(4).toFloat(), 0f, dp(1).toFloat(), if (color == Color.WHITE) 0x80000000.toInt() else 0x80FFFFFF.toInt())
+        if (!fade || v.currentTextColor == color) return v.setTextColor(color)
+        ValueAnimator.ofArgb(v.currentTextColor, color).apply {
+            duration = 800 // with the wallpaper's crossfade
+            addUpdateListener { v.setTextColor(it.animatedValue as Int) }
+            start()
+        }
     }
 
     // ---------- wallpapers ----------
@@ -850,6 +935,8 @@ class MainActivity : Activity() {
         if (choice.startsWith("plain:")) { // the root's ground colour shows through
             view.setImageDrawable(null)
             glass.setBlur(null)
+            wpThumb = null
+            fitInk()
             return
         }
         val fallback = defaultWallpaper(dark)
@@ -862,7 +949,8 @@ class MainActivity : Activity() {
                 null
             } ?: decodeWallpaper(fallback)
             val blur = if (bmp != null && glassActive()) glassPixels(bmp, ground, dark) else null
-            // Nothing reads the pixels after the blur: keep the picture in graphics memory only, not once more in the process.
+            val thumb = bmp?.let { Bitmap.createScaledBitmap(it, 64, maxOf(1, 64 * it.height / it.width), true) }
+            // Nothing reads the pixels from here on: keep the picture in graphics memory only, not once more in the process.
             val shown = bmp?.let { b ->
                 try {
                     b.copy(Bitmap.Config.HARDWARE, false)?.also { b.recycle() } ?: b
@@ -874,6 +962,8 @@ class MainActivity : Activity() {
                 glass.setBlur(blur)
                 glassSurfaces.forEach { it.get()?.setBlur(glass.blur) } // menus and cards that are open, and the panel
                 if (settingsScrim.visibility == View.VISIBLE) showPanelGlass() // a wallpaper picked from the panel itself
+                wpThumb = thumb
+                fitInk()
                 val old = view.drawable
                 if (old == null || shown == null) return@post view.setImageBitmap(shown)
                 // Soft change from one photo to the next; then drop the old one so only one stays in memory.
@@ -903,16 +993,11 @@ class MainActivity : Activity() {
         } ?: return null
         // Bing's pictures are often bright daylight, which fights true black: dim them in dark mode.
         if (dark && choice == Bing.CHOICE) Canvas(bmp).drawColor(Color.argb(DARK_DIM, 0, 0, 0))
-        // Same fade as the bundled ones: clear above 28% height, into the background colour by 50%.
         val h = bmp.height.toFloat()
         val base = ground and 0x00FFFFFF
-        if (wallpaperFade()) Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h, Paint().apply {
-            isDither = true
-            shader = LinearGradient(0f, h * 0.28f, 0f, h * 0.5f, base, base or 0xE6000000.toInt(), Shader.TileMode.CLAMP)
-        })
         // Photos rarely have the bundled ones' empty sky: a soft veil behind the clock and top-bar icons keeps them readable.
         // Strong over the clock and icons (top ~20%), gone by 30% so the photo still shows above the apps.
-        Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h * 0.3f, Paint().apply {
+        if (wallpaperFade()) Canvas(bmp).drawRect(0f, 0f, bmp.width.toFloat(), h * 0.3f, Paint().apply {
             isDither = true
             shader = LinearGradient(0f, 0f, 0f, h * 0.3f, intArrayOf(base or 0xC0000000.toInt(), base or 0xA0000000.toInt(), base),
                 floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
@@ -1267,6 +1352,16 @@ class MainActivity : Activity() {
                 renderApps()
                 renderSettings(R.string.app_names)
             },
+            R.string.show_row to { d ->
+                prefs.edit().putString("row_show", ROW_SHOW.keys.toList().step(rowShow(), d)).apply()
+                placeRow(animate = false)
+                renderSettings(R.string.show_row)
+            },
+            R.string.apps_when_hidden to { _ ->
+                prefs.edit().putBoolean("row_drop", !rowDrops()).apply()
+                placeRow(animate = false)
+                renderSettings(R.string.apps_when_hidden)
+            },
         )
         val rows = linkedMapOf<Int, Triple<String, String, () -> Unit>>(
             R.string.edit_apps_row to Triple(getString(R.string.edit_apps_row), "") { closeLauncherSettings(); startEdit(grab = null) },
@@ -1309,6 +1404,10 @@ class MainActivity : Activity() {
             R.string.cw_apps to Triple(getString(R.string.cw_apps), if (cwOff == 0) getString(R.string.all_on) else getString(R.string.n_off, cwOff)) { pickWatchSources() },
             R.string.cw_channels to Triple(getString(R.string.cw_channels), getString(R.string.n_on, channelsOn)) { pickChannels() },
             R.string.row_name to Triple(getString(R.string.row_name), rowName()) { pickRowName() },
+            R.string.show_row to Triple(getString(R.string.show_row), getString(ROW_SHOW.getValue(rowShow()))) { steps[R.string.show_row]!!(1) },
+            R.string.apps_when_hidden to Triple(getString(R.string.apps_when_hidden), getString(if (rowDrops()) R.string.moves_down else R.string.stays_put)) {
+                steps[R.string.apps_when_hidden]!!(1)
+            },
             // "weather" is off/c/f as before; "wx_unit" keeps the unit while it's off.
             R.string.weather to Triple(getString(R.string.weather), toggle(weather != "off")) {
                 if (weather == "off") prefs.edit().putString("weather", unit).apply()
@@ -1355,7 +1454,9 @@ class MainActivity : Activity() {
                 listOf(R.string.theme, R.string.light_wallpaper, R.string.dark_wallpaper, R.string.photo_fade, R.string.glass, R.string.folder_photo_changes)),
             Triple(R.string.section_app_row, "${rows[R.string.apps_in_row]!!.second} · ${rows[R.string.row_position]!!.second}",
                 listOf(R.string.edit_apps_row, R.string.sort_apps, R.string.apps_in_row, R.string.row_position, R.string.app_names, R.string.icon_style)),
-            Triple(R.string.bottom_row, rowName(), listOf(R.string.row_name, R.string.cw_channels, R.string.cw_apps, R.string.restore_hidden)),
+            // "App row when hidden" only means something once the row can hide.
+            Triple(R.string.bottom_row, rowName(), listOfNotNull(R.string.row_name, R.string.show_row,
+                R.string.apps_when_hidden.takeIf { rowShow() != "always" }, R.string.cw_channels, R.string.cw_apps, R.string.restore_hidden)),
             Triple(R.string.section_weather, if (weather == "off") on(false) else "${rows[R.string.weather_units]!!.second} · ${rows[R.string.weather_location]!!.second}",
                 listOf(R.string.weather, R.string.weather_units, R.string.weather_location)),
             Triple(R.string.section_screensaver, rows[R.string.screensaver]!!.second, listOf(R.string.screensaver, R.string.test_screensaver, R.string.screensaver_timing)),
@@ -2818,6 +2919,7 @@ class MainActivity : Activity() {
         view.text = listOfNotNull("$temp° ${weatherWord(prefs.getInt("wx_code", 0))}".trim(), prefs.getString("geo_city", null))
             .joinToString("  ·  ")
         view.visibility = View.VISIBLE
+        view.post { fitInk() }
     }
 
     /** WMO weather codes, as Open-Meteo reports them. */
@@ -3034,12 +3136,11 @@ class MainActivity : Activity() {
         watchList = list
         val focusedAt = watchRow.indexOfChild(currentFocus?.parent as? View)
         watchRow.removeAllViews()
-        val visible = if (list.isEmpty()) View.GONE else View.VISIBLE
-        watchTitle.visibility = visible
         watchTitle.text = rowName()
-        watchScroll.visibility = visible
+        placeRow(animate = false)
         // ~16 ms per card here and only four show at once: the first four now, the next four on the next frame.
         addCardsTo(3)
+        watchRow.post { fitInk() }
         ui.post { if (watchKey == key) addCardsTo(CARDS_AHEAD - 1) } // unless a newer list replaced this one
         if (focusedAt >= 0) {
             ((watchRow.getChildAt(focusedAt.coerceAtMost(watchRow.childCount - 1)) as? LinearLayout)?.getChildAt(0)
@@ -3048,6 +3149,45 @@ class MainActivity : Activity() {
     }
 
     private var watchList = emptyList<Prog>()
+
+    /** "always", "down" (hidden until Down reaches it) or "never". */
+    private fun rowShow() = prefs.getString("row_show", "always")!!.takeIf { it in ROW_SHOW } ?: "always"
+
+    /** While the bottom row is hidden, the app row drops into its space (true) or stays where it is. */
+    private fun rowDrops() = prefs.getBoolean("row_drop", false)
+
+    /**
+     * Puts the bottom row and the app row where "Show row" wants them. Both rows are built once and only
+     * slide (translationY on a layer), so the move costs no layout or redraw, even on a slow TV.
+     */
+    private fun placeRow(animate: Boolean) {
+        val show = rowShow()
+        val has = watchList.isNotEmpty()
+        val keepSpace = show != "always" && !rowDrops() // "Stays put": the apps keep their place, even with no shows
+        // With no shows, an invisible stand-in card holds the row's height, so the apps don't fall to the bottom.
+        if (!has && keepSpace && watchRow.childCount == 0) watchRow.addView(watchCard(Prog(" ", " ", 0, null, null, null), false))
+        else if (!has && !keepSpace && watchRow.childCount > 0) watchRow.removeAllViews()
+        val vis = when {
+            !has -> if (keepSpace) View.INVISIBLE else View.GONE
+            show == "never" -> if (rowDrops()) View.GONE else View.INVISIBLE // invisible keeps its space
+            else -> View.VISIBLE
+        }
+        if (watchScroll.visibility != vis) { watchTitle.visibility = vis; watchScroll.visibility = vis }
+        val hidden = show == "down" && has && !rowOut
+        // From where the app row sits above the bottom row to where it would sit without it.
+        val drop = (watchScroll.bottom - appScroll.bottom).toFloat().coerceAtLeast(0f)
+        val appY = if (hidden && rowDrops()) drop else 0f
+        val rowY = if (!hidden) 0f else if (rowDrops()) drop else dp(24).toFloat()
+        fun move(v: View, y: Float, a: Float) {
+            if (v.translationY == y && v.alpha == a) return // a layer for a view that doesn't move only costs frames
+            if (animate) v.animate().translationY(y).alpha(a).setDuration(250).setInterpolator(DECELERATE).start()
+            else { v.animate().cancel(); v.translationY = y; v.alpha = a }
+        }
+        move(appsTitle, appY, appsTitle.alpha)
+        move(appScroll, appY, 1f)
+        move(watchTitle, rowY, if (hidden) 0f else titleAlpha)
+        move(watchScroll, rowY, if (hidden) 0f else 1f)
+    }
 
     /**
      * Cards exist up to index [last] only: the four on screen and the four after them, more as focus moves on.
@@ -3084,6 +3224,7 @@ class MainActivity : Activity() {
             isSingleLine = true
             ellipsize = TextUtils.TruncateAt.MARQUEE
             marqueeRepeatLimit = -1
+            ink(this, watchInk)
         }
         val frame = FrameLayout(this)
         style(frame, dp(8), card = true, lift = 1.1f) { focused ->
@@ -3110,6 +3251,7 @@ class MainActivity : Activity() {
         val icon = sourceIcon(p.pkg)
         if (p.sub.isNotEmpty() || icon != null) {
             col.addView(label(p.sub, 12f).apply {
+                ink(this, watchInk)
                 alpha = 0.8f
                 setPadding(0, dp(2), 0, 0)
                 icon?.let {
@@ -3313,6 +3455,7 @@ class MainActivity : Activity() {
             "centre" to (R.string.align_centre to Gravity.CENTER_HORIZONTAL),
             "right" to (R.string.align_right to Gravity.END),
         )
+        val ROW_SHOW = linkedMapOf("always" to R.string.always, "down" to R.string.on_down, "never" to R.string.never) // "Show row"
         const val BADGE = 0xFFFF453A.toInt()
         // Dark mode tokens, for AMOLED: true black, and near-black cards that read as cards because their edge
         // catches light (brightest along the top), the way light-mode cards use a soft shadow.
@@ -3432,4 +3575,11 @@ class MainActivity : Activity() {
             "com.android.vending" to (R.drawable.logo_googleplay to false),
         )
     }
+}
+
+/** White or near-black over a background of luminance [lum], whichever has the higher contrast (WCAG). */
+internal fun inkFor(lum: Float): Int {
+    val dark = 0xFF111214.toInt()
+    val darkLum = 0.0063f // luminance of #111214
+    return if (1.05f / (lum + 0.05f) >= (lum + 0.05f) / (darkLum + 0.05f)) Color.WHITE else dark
 }
