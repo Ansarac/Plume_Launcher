@@ -3021,11 +3021,12 @@ class MainActivity : Activity() {
         refreshWatchNext()
     }
 
-    /** Small source-app mark for the details line: the app's own icon with colour app icons, else its mono logo or a greyscale icon. */
+    /** Small source-app mark for the details line: its logo when we have one (brand colour with colour app icons), else its icon (greyscale unless colour). */
     private fun sourceIcon(pkg: String?): Drawable? {
         if (pkg == null) return null
         val colour = colourIcons()
-        if (!colour) LOGOS[pkg]?.takeIf { !it.second }?.let { return getDrawable(it.first)!!.mutate().apply { setTint(fg) } }
+        val tint = BRAND_COLOURS[pkg]?.takeIf { colour } ?: fg
+        LOGOS[pkg]?.takeIf { !it.second }?.let { return getDrawable(it.first)!!.mutate().apply { setTint(tint) } }
         return try {
             packageManager.getApplicationIcon(pkg).mutate().apply { if (!colour) colorFilter = GREYSCALE }
         } catch (e: PackageManager.NameNotFoundException) {
