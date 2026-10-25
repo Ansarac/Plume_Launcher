@@ -19,8 +19,12 @@ import android.view.KeyEvent
 object Remap {
     class Entry(val short: String, val long: String)
 
-    /** Set while the settings page waits for a key to change. */
+    /** Set while the settings page waits for a key to change; the service must see keys meanwhile. */
     var learn: ((KeyEvent) -> Unit)? = null
+        set(value) {
+            field = value
+            HomeOverride.running?.applyKeyFilter()
+        }
 
     /** The key whose press was just taken to be learned: its repeats and its release are swallowed too. */
     var pending: String? = null
@@ -88,7 +92,10 @@ object Remap {
     }
 
     /** Saves a key's actions; a key left with none is forgotten and goes back to its usual job. */
-    fun put(c: Context, id: String, short: String, long: String) = put(store(c), id, short, long)
+    fun put(c: Context, id: String, short: String, long: String) {
+        put(store(c), id, short, long)
+        HomeOverride.running?.applyKeyFilter()
+    }
 
     internal fun put(p: SharedPreferences, id: String, short: String, long: String) {
         val m = all(p)

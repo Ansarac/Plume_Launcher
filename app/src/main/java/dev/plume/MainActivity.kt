@@ -1498,6 +1498,11 @@ class MainActivity : Activity() {
             R.string.screensaver_timing to Triple(getString(R.string.screensaver_timing), "") { openScreensaverSettings() },
             R.string.setup_home to Triple(getString(R.string.setup_home), "") { closeLauncherSettings(); startHomeSetup() },
             R.string.home_button to Triple(getString(R.string.home_button), toggle(homeServiceOn())) { toggleHomeButton() },
+            R.string.smooth_volume to Triple(getString(R.string.smooth_volume), toggle(prefs.getBoolean("smooth_volume", false))) {
+                prefs.edit().putBoolean("smooth_volume", !prefs.getBoolean("smooth_volume", false)).commit()
+                HomeOverride.running?.applyKeyFilter()
+                renderSettings(R.string.smooth_volume)
+            },
             R.string.default_launcher to Triple(getString(R.string.default_launcher), if (isDefaultHome()) getString(R.string.plume_press_change) else getString(R.string.press_to_set)) { makeDefaultHome() },
             R.string.updates to Triple(getString(R.string.updates), when {
                 updating -> getString(R.string.updating)
@@ -1540,7 +1545,7 @@ class MainActivity : Activity() {
                 R.string.row_name, R.string.show_icons, R.string.cw_apps, R.string.cw_channels, R.string.restore_hidden)),
             Triple(R.string.section_screensaver, rows[R.string.screensaver]!!.second, listOf(R.string.screensaver, R.string.test_screensaver, R.string.screensaver_timing)),
             Triple(R.string.section_remote_home, on(homeServiceOn() || isDefaultHome()),
-                listOf(R.string.home_button, R.string.default_launcher, R.string.setup_home, R.string.section_keys)),
+                listOf(R.string.home_button, R.string.smooth_volume, R.string.default_launcher, R.string.setup_home, R.string.section_keys)),
             Triple(R.string.section_lock, on(lockOn()), listOf(R.string.lock_layout)),
         )
         val section = sections.firstOrNull { at in it.third }
@@ -3827,7 +3832,8 @@ class MainActivity : Activity() {
             R.string.show_icons to R.string.help_show_icons,
             R.string.cw_apps to R.string.help_from_apps, R.string.cw_channels to R.string.help_channels,
             R.string.restore_hidden to R.string.help_hidden_shows, R.string.screensaver_timing to R.string.help_start_after,
-            R.string.home_button to R.string.help_home_button, R.string.default_launcher to R.string.help_default_launcher,
+            R.string.home_button to R.string.help_home_button, R.string.smooth_volume to R.string.help_smooth_volume,
+            R.string.default_launcher to R.string.help_default_launcher,
             R.string.setup_home to R.string.help_run_setup, R.string.section_keys to R.string.help_remote_keys,
         )
         val ROW_SHOW = linkedMapOf("always" to R.string.always, "down" to R.string.on_down, "never" to R.string.never) // "Show row"

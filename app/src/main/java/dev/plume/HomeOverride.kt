@@ -1,6 +1,7 @@
 package dev.plume
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
@@ -14,6 +15,19 @@ import android.view.accessibility.AccessibilityEvent
 class HomeOverride : AccessibilityService() {
     override fun onServiceConnected() {
         running = this
+        applyKeyFilter()
+    }
+
+    /**
+     * Seeing keys costs volume its hold on TVs: Android acts on Volume before any service sees it and the key never
+     * repeats. So Smooth volume turns key filtering off, unless remote keys need it (set, or one being learned).
+     * Home is then caught by the Google TV window watcher below, which shows Google TV for about a second.
+     */
+    fun applyKeyFilter() {
+        val filter = !getSharedPreferences("home", MODE_PRIVATE).getBoolean("smooth_volume", false) ||
+            Remap.all(this).isNotEmpty() || Remap.learn != null
+        val flag = AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+        serviceInfo = serviceInfo.apply { flags = if (filter) flags or flag else flags and flag.inv() }
     }
 
     /** Turned off, from Plume's switch or Android's Accessibility settings: the app mustn't turn it back on. */
