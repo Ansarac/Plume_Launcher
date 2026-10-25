@@ -3,7 +3,6 @@
     <string name="delete_photo">حذف \"%1$s\"؟</string>
     <string name="photo_added">تمت إضافة \"%1$s\". أرسل صورة أخرى، أو اضغط تم.</string>
     <string name="n_of_m">%1$d من %2$d</string>
-    <string name="n_hidden">%1$d مخفي</string>
     <string name="n_off">%1$d متوقف</string>
     <string name="update_available_row">يتوفر %1$s</string>
     <string name="up_to_date_row">محدّث (%1$s)</string>
@@ -48,7 +47,8 @@
     <string name="done">تم</string>
     <string name="edit_apps_row">تعديل صف التطبيقات</string>
     <string name="theme">المظهر</string>
-    <string name="photo_fade">تلاشي الصور</string>
+    <string name="fade_top">التلاشي العلوي</string>
+    <string name="fade_bottom">التلاشي السفلي</string>
     <string name="sort_apps">ترتيب التطبيقات</string>
     <string name="manual">يدوي</string>
     <string name="most_used">الأكثر استخدامًا</string>
@@ -178,14 +178,17 @@
     <string name="check_updates">التحقق من التحديثات</string>
     <string name="install_update">تثبيت %1$s</string>
     <string name="row_position">موضع صف التطبيقات</string>
+    <string name="show_row">إظهار الصف</string>
+    <string name="on_down">عند الضغط لأسفل</string>
+    <string name="apps_when_hidden">صف التطبيقات عند الإخفاء</string>
+    <string name="stays_put">يبقى مكانه</string>
+    <string name="moves_down">ينزل للأسفل</string>
     <string name="align_left">يسار</string>
     <string name="align_centre">وسط</string>
     <string name="align_right">يمين</string>
     <string name="section_appearance">المظهر</string>
     <string name="section_app_row">صف التطبيقات</string>
-    <string name="section_weather">الطقس</string>
     <string name="section_screensaver">شاشة التوقف</string>
-    <string name="section_home">زر الرئيسية</string>
     <string name="bing_daily">صورة اليوم من Bing</string>
     <string name="sources">المصادر</string>
     <string name="no_signal">لا توجد إشارة</string>
