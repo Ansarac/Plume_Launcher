@@ -1,11 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The banner's house, centred in the 108dp adaptive icon. -->
+<!-- A feather, tilted and sized to stay inside the 66dp safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="27"
-    android:viewportHeight="27">
-    <group android:translateX="-2.5" android:translateY="4.5">
-        <path android:fillColor="#FFFFFF" android:pathData="M16,4l-6,5h2v5h3v-3h2v3h3v-5h2z" />
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="40"
+        android:scaleX="0.78"
+        android:scaleY="0.78"
+        android:translateX="-1.5"
+        android:translateY="1.5">
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M54,16 C66,27 71,42 70,56 C69.5,63 67.5,68 64.5,72 L57,66.5 L61.5,75 C59.5,77.5 57.5,79 56,80 L52,80 C45,75 39,66 39,55 L48,55.5 L39.6,48 C40.5,44 41.6,40.5 43.2,37.4 L50,41 L45,34 C47.5,27 50.5,21 54,16 Z M53.6,26 C54.6,45 54.9,62 55.1,80 L52.9,80 C52.8,62 52.8,45 53.6,26 Z" />
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="3.4"
+            android:strokeLineCap="round"
+            android:pathData="M54.1,79 L54.4,92" />
     </group>
 </vector>
