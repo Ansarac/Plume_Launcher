@@ -1243,10 +1243,13 @@ class MainActivity : Activity() {
         // Rows with more than two values also step back with Left; two-value rows flip either way.
         val steps = mutableMapOf<Int, (Int) -> Unit>(
             R.string.icon_style to { d ->
+                val wasColour = colourIcons()
                 prefs.edit().putString("icon_style", ICON_STYLES.keys.toList().step(iconStyle(), d)).apply()
                 renderApps()
-                watchKey = null // rebuild the cards so their source icons follow the new style
-                showWatchNext(watchList)
+                if (colourIcons() != wasColour) { // rebuild the cards so their source icons follow the new style
+                    watchKey = null
+                    showWatchNext(watchList)
+                }
                 renderSettings(R.string.icon_style)
             },
             R.string.theme to { d ->
