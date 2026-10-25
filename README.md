@@ -73,6 +73,9 @@ Until one of them is on, Plume settings shows a **Finish setup** card at the top
 Allow the **TV listings** permission when asked; Continue Watching needs it.
 
 > [!NOTE]
+> **Holding Volume moves one step?** Many TVs act on the volume keys before any accessibility service sees them, so with the Home button on, a held Volume key changes the volume only once. Turn on **Plume settings → Remote & Home button → Smooth volume** to get the normal hold back. In exchange, Home shows Google TV for about a second before Plume opens, and Smooth volume stays off while any **Remote keys** are set.
+
+> [!NOTE]
 > Android shows the same generic warning for every accessibility service. Plume's service listens for the Home key, for the keys you set under **Remote keys** and for the system launcher appearing. It cannot read screen content.
 
 > [!TIP]
@@ -132,7 +135,7 @@ Android 13 and newer grey out the Accessibility switch for apps installed outsid
 - open **Android settings** or **Network settings**
 - **Do nothing**
 
-Back, OK, the arrows, Home, Power and the volume keys can't be changed, so the remote can't be locked out and keeps its volume. A key you set stops doing its usual job. **Remove this key** gives it back. The keys work through the Home button service, so **Plume: Home button** must be on in Accessibility settings.
+Back, OK, the arrows, Home, Power and the volume keys can't be changed, so the remote can't be locked out. While any key is set, **Smooth volume** is off. A key you set stops doing its usual job. **Remove this key** gives it back. The keys work through the Home button service, so **Plume: Home button** must be on in Accessibility settings.
 
 ### Custom wallpapers
 
