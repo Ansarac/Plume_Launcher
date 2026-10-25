@@ -3,7 +3,6 @@
     <string name="delete_photo">\"%1$s\" silinsin mi?</string>
     <string name="photo_added">\"%1$s\" eklendi. Başka bir fotoğraf gönderin veya Bitti\'ye basın.</string>
     <string name="n_of_m">%1$d / %2$d</string>
-    <string name="n_hidden">%1$d gizli</string>
     <string name="n_off">%1$d kapalı</string>
     <string name="update_available_row">%1$s mevcut</string>
     <string name="up_to_date_row">Güncel (%1$s)</string>
@@ -181,9 +180,7 @@
     <string name="align_right">Sağ</string>
     <string name="section_appearance">Görünüm</string>
     <string name="section_app_row">Uygulama satırı</string>
-    <string name="section_weather">Hava Durumu</string>
     <string name="section_screensaver">Ekran Koruyucu</string>
-    <string name="section_home">Ana Ekran tuşu</string>
     <string name="sources">Kaynaklar</string>
     <string name="no_signal">Sinyal yok</string>
     <string name="in_row">Satırda</string>
