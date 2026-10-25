@@ -32,7 +32,9 @@ import android.graphics.Outline
 import android.graphics.PixelFormat
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
+import android.graphics.Path
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
@@ -1219,6 +1221,8 @@ class MainActivity : Activity() {
             }
         findViewById<TextView>(R.id.settingsTitle).setTextColor(fg)
         for (id in listOf(R.id.settingsCrumb, R.id.settingsHelp)) findViewById<TextView>(id).apply { setTextColor(fg); secondary(0.6f) }
+        settingsScrim.background = spotlight.apply { reset() }
+        pages.clear()
         settingsScrim.visibility = View.VISIBLE
         homeFocusable(false)
     }
@@ -1419,7 +1423,7 @@ class MainActivity : Activity() {
             val walls = mapOf(R.string.light_wallpaper to false, R.string.dark_wallpaper to true)
             val styles = keys.map { k ->
                 val forDark = walls[k]
-                RowStyle(choices = choices[k], help = ROW_HELP[k]?.let { getString(it) },
+                RowStyle(choices = choices[k], help = ROW_HELP[k]?.let { getString(it) }, area = SECTION_AREAS[section.first],
                     thumb = forDark?.let { currentWallpaper(it) to it }, sub = forDark?.let { wallpaperName(currentWallpaper(it)) })
             }
             // A wallpaper row shows its picture and name instead of the name alone.
@@ -1434,7 +1438,7 @@ class MainActivity : Activity() {
                 else Triple(R.string.finish_setup, page(getString(R.string.finish_setup), "›") { closeLauncherSettings(); startHomeSetup() },
                     RowStyle(R.drawable.ic_home, getString(R.string.finish_setup_value), help = getString(R.string.help_finish_setup)))) +
             sections.map { (key, value, keys) ->
-                Triple(key, page(getString(key), "›") { renderSettings(keys[0]) }, RowStyle(SECTION_ICONS[key], value, help = ROW_HELP[key]?.let { getString(it) }))
+                Triple(key, page(getString(key), "›") { renderSettings(keys[0]) }, RowStyle(SECTION_ICONS[key], value, help = ROW_HELP[key]?.let { getString(it) }, area = SECTION_AREAS[key]))
             } +
             Triple(R.string.updates, rows[R.string.updates]!!.let { (t, v, a) -> page(t, "›", a) },
                 RowStyle(R.drawable.ic_update, rows[R.string.updates]!!.second, help = getString(R.string.help_updates))) +
@@ -1475,6 +1479,17 @@ class MainActivity : Activity() {
         pageExit?.invoke()
         pageExit = null
         pageBack = back
+        // Deeper pages slide in from the right, ones already visited (Back) from the left; a redraw of the same page stays put.
+        val dir = when {
+            pages.lastOrNull() == title -> 0
+            title in pages -> -1.also { while (pages.last() != title) pages.removeAt(pages.size - 1) }
+            else -> (if (pages.isEmpty()) 0 else 1).also { pages.add(title) }
+        }
+        if (dir != 0) for (v in listOf(settingsList, findViewById(R.id.settingsTitle), findViewById(R.id.settingsCrumb))) {
+            v.translationX = dp(32) * dir.toFloat()
+            v.alpha = 0f
+            v.animate().translationX(0f).alpha(1f).setDuration(200).setInterpolator(DECELERATE).start()
+        }
         findViewById<TextView>(R.id.settingsTitle).text = title
         findViewById<TextView>(R.id.settingsCrumb).apply {
             text = crumb?.let { "$it  ›" }
@@ -1633,12 +1648,88 @@ class MainActivity : Activity() {
     }
 
     /** A settings row; with [step], Left and Right change its value in place, and ‹ › show that while focused. */
+    private val pages = ArrayList<CharSequence>() // titles of the settings pages open, from the main list down
+    private val spotlight by lazy { Spotlight() }
+
+    /**
+     * The settings panel's dim over the home screen, with a soft window over [area]'s part of it: the part the
+     * selected section changes. It glides from part to part; null dims evenly. Animators follow the TV's animation scale.
+     */
+    private inner class Spotlight : Drawable() {
+        private val hole = RectF()
+        private var open = 0f // 0: even dim, 1: the window fully clear
+        private var anim: ValueAnimator? = null
+        private val path = Path()
+
+        fun reset() {
+            anim?.cancel()
+            open = 0f
+            invalidateSelf()
+        }
+
+        fun show(target: RectF?) {
+            anim?.cancel()
+            val from = RectF(hole)
+            val fromOpen = open
+            // Coming from an even dim, the window opens in place rather than flying in from the last spot.
+            if (target != null && open == 0f) from.set(target)
+            anim = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 260
+                interpolator = DECELERATE
+                addUpdateListener { a ->
+                    val t = a.animatedValue as Float
+                    if (target != null) hole.set(from.left + (target.left - from.left) * t, from.top + (target.top - from.top) * t,
+                        from.right + (target.right - from.right) * t, from.bottom + (target.bottom - from.bottom) * t)
+                    open = fromOpen + ((if (target == null) 0f else 1f) - fromOpen) * t
+                    invalidateSelf()
+                }
+                start()
+            }
+        }
+
+        override fun draw(c: Canvas) {
+            val dim = SCRIM_ALPHA shl 24
+            if (open == 0f) return c.drawColor(dim)
+            path.reset()
+            path.addRoundRect(hole, dp(16).toFloat(), dp(16).toFloat(), Path.Direction.CW)
+            c.save()
+            c.clipOutPath(path)
+            c.drawColor(dim)
+            c.restore()
+            c.save()
+            c.clipPath(path)
+            c.drawColor((SCRIM_ALPHA * (1 - open)).toInt() shl 24) // the window clears as it opens
+            c.restore()
+        }
+
+        override fun setAlpha(a: Int) {}
+        override fun setColorFilter(f: ColorFilter?) {}
+        @Deprecated("Deprecated in Java") override fun getOpacity() = PixelFormat.TRANSLUCENT
+    }
+
+    /** Where [area] sits on the screen, with some room around it; null when it has no part on screen. */
+    private fun areaBounds(area: Int?): RectF? {
+        val views = when (area) {
+            AREA_ALL -> return RectF(0f, 0f, settingsScrim.width.toFloat(), settingsScrim.height.toFloat())
+            AREA_CLOCK -> listOf(findViewById<View>(R.id.clock).parent as View)
+            AREA_APPS -> listOf(findViewById(R.id.appScroll))
+            AREA_SHOWS -> listOf(findViewById(R.id.watchTitle), findViewById<View>(R.id.watchScroll))
+            else -> return null
+        }.filter { it.isShown && it.height > 0 }
+        if (views.isEmpty()) return null
+        val at = IntArray(2)
+        settingsScrim.getLocationInWindow(at)
+        val (ox, oy) = at[0] to at[1]
+        return views.map { v -> v.getLocationInWindow(at); RectF((at[0] - ox).toFloat(), (at[1] - oy).toFloat(), (at[0] - ox + v.width).toFloat(), (at[1] - oy + v.height).toFloat()) }
+            .reduce { a, b -> a.apply { union(b) } }.apply { inset(-dp(14).toFloat(), -dp(10).toFloat()) }
+    }
+
     /**
      * Extras for a settings row: an [icon] in front, a second line ([sub]), [choices] shown side by side (name and
      * icon; the row's value says which is picked), a wallpaper picture ([thumb], a wallpaper choice) and a [help] line.
      */
     private class RowStyle(val icon: Int? = null, val sub: String? = null, val choices: List<Pair<String, Int?>>? = null,
-                           val thumb: Pair<String, Boolean>? = null, val help: String? = null)
+                           val thumb: Pair<String, Boolean>? = null, val help: String? = null, val area: Int? = null)
 
     private fun settingsRow(title: String, value: String, step: ((Int) -> Unit)? = null, style: RowStyle? = null, action: () -> Unit): View {
         val bg = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0, 0)).apply { cornerRadius = dp(8).toFloat() }
@@ -1684,7 +1775,10 @@ class MainActivity : Activity() {
                     }
                 }.start()
                 if (step != null) shown?.text = if (focused) "‹  $value  ›" else value
-                if (focused) showHelp(style?.help)
+                if (focused) {
+                    showHelp(style?.help)
+                    spotlight.show(areaBounds(style?.area))
+                }
             }
             tag = step // dispatchKeyEvent calls it for Left (-1) and Right (+1)
         }
@@ -3507,6 +3601,16 @@ class MainActivity : Activity() {
             "left" to (R.string.align_left to Gravity.START),
             "centre" to (R.string.align_centre to Gravity.CENTER_HORIZONTAL),
             "right" to (R.string.align_right to Gravity.END),
+        )
+        const val SCRIM_ALPHA = 0x99 // the settings panel's dim over the home screen
+        const val AREA_ALL = 0
+        const val AREA_CLOCK = 1
+        const val AREA_APPS = 2
+        const val AREA_SHOWS = 3
+        /** The part of the home screen each section changes, lit by the spotlight; other sections dim it all. */
+        val SECTION_AREAS = mapOf(
+            R.string.section_appearance to AREA_ALL, R.string.section_clock_weather to AREA_CLOCK,
+            R.string.section_app_row to AREA_APPS, R.string.bottom_row to AREA_SHOWS,
         )
         val SECTION_ICONS = mapOf(
             R.string.section_appearance to R.drawable.ic_wallpaper, R.string.section_clock_weather to R.drawable.ic_clock,

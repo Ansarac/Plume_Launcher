@@ -17,6 +17,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- **Settings show what they change.** In **Plume settings**, the home screen behind the panel goes darker. The part that the selected section changes stays bright, for example the clock or the apps row. Pages slide in when you open them and slide back when you press Back.
 - **Clearer Plume settings.** Each section has an icon and shows its settings under its name. Settings with two or three choices show all of them, and **Theme** shows a sun and a moon. The light and dark wallpapers show as small pictures. A line at the bottom tells what the selected setting does.
 - **Auto follows the sun.** With **Theme** set to **Auto**, Plume changes to dark at sunset and to light at sunrise where you are. Plume calculates the times on the TV. It uses the weather location. If Plume does not know your location, it uses 7:00 and 19:00 as before. **Plume settings → Wallpaper & theme** shows today's times.
 - **Hide the bottom row.** Select **Plume settings → Shows row → Show row**. Choose **On Down** to show only the apps and the wallpaper. Press Down to slide the row in, and Up to hide it. Choose **Never** to remove the row. **Apps when row hides** keeps the apps in place or moves them down.
