@@ -16,6 +16,8 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- On Xiaomi TVs, **Install** opens the TV's installer. Before, Plume closed.
+
 ## 1.6
 
 ### Design
