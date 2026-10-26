@@ -3168,9 +3168,13 @@ class MainActivity : Activity() {
     private fun installStatus(intent: Intent) {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)?.let { startActivity(it) }
-            return
+            try {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)?.let { startActivity(it) }
+                return
+            } catch (_: Exception) {
+                // Some TVs (Xiaomi HyperOS) have no confirm box: say the update failed instead of crashing.
+            }
         }
         updating = false
         if (status != PackageInstaller.STATUS_SUCCESS) {
