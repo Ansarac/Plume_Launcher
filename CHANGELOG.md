@@ -16,6 +16,8 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- **Updates on Xiaomi TVs.** Select **Install** and the TV's own installer opens. Before, Plume closed.
+
 ## 1.6
 
 ### Design

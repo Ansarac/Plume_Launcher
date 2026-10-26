@@ -3192,9 +3192,14 @@ class MainActivity : Activity() {
     private fun installStatus(intent: Intent) {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)?.let { startActivity(it) }
-            return
+            try {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)?.let { startActivity(it) }
+                return
+            } catch (_: Exception) {
+                // Some TVs (Xiaomi HyperOS) have no confirm box: open the APK so the TV's own installer takes it.
+                availableUpdate()?.let { return openApk(it) }
+            }
         }
         updating = false
         if (status != PackageInstaller.STATUS_SUCCESS) {
@@ -3205,6 +3210,33 @@ class MainActivity : Activity() {
             }
         }
         if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.updates)
+    }
+
+    /** Downloads the update again into a file and opens it, for the TV's own installer (see [ApkProvider]). */
+    private fun openApk(ver: String) {
+        io.execute {
+            val ok = try {
+                openStream("https://github.com/$REPO/releases/download/v$ver/Plume.apk").use { input ->
+                    File(cacheDir, ApkProvider.NAME).outputStream().use { input.copyTo(it) }
+                }
+                true
+            } catch (e: Exception) {
+                android.util.Log.w("Plume", "update download failed ($e)")
+                false
+            }
+            ui.post {
+                updating = false
+                try {
+                    if (ok) startActivity(Intent(Intent.ACTION_VIEW)
+                        .setDataAndType(Uri.parse("content://$packageName.apk/${ApkProvider.NAME}"), "application/vnd.android.package-archive")
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
+                    else toast(getString(R.string.update_download_failed), long = true)
+                } catch (_: Exception) {
+                    toast(getString(R.string.update_install_failed), long = true)
+                }
+                if (settingsScrim.visibility == View.VISIBLE) renderSettings(R.string.updates)
+            }
+        }
     }
 
     // ---------- weather (under the date) ----------
