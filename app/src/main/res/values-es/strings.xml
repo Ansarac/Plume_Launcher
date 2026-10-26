@@ -195,7 +195,7 @@
     <!-- Ventanas de configuración del botón Inicio -->
     <string name="setup_home">Repetir configuración</string>
     <string name="preview_home_setup">Vista previa de configuración de Inicio</string>
-    <string name="setup_step">Paso %1$d de 3</string>
+    <string name="setup_step">Paso %1$d de %2$d</string>
     <string name="setup_role_title">Haz que Plume sea tu pantalla de inicio</string>
     <string name="setup_role_body">Android preguntará qué aplicación usar como pantalla de inicio. Elige Plume.</string>
     <string name="setup_test_title">Pulsa Inicio en tu control remoto</string>

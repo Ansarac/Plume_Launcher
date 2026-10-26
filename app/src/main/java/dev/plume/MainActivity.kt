@@ -722,7 +722,9 @@ class MainActivity : Activity() {
         card.apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(28), dp(24), dp(28), dp(20))
-            if (step > 0) addView(label(getString(R.string.setup_step, step), 12f).apply { secondary(0.6f) })
+            // Google TV and Fire TV skip the role step, so their count starts at the service.
+            val skip = if (HomeOverride.fireTv(context) || googleTv()) 1 else 0
+            if (step > 0) addView(label(getString(R.string.setup_step, step - skip, 3 - skip), 12f).apply { secondary(0.6f) })
             addView(label(title, 22f).apply { setTypeface(typeface, Typeface.BOLD); setPadding(0, dp(4), 0, 0) })
             body?.let { addView(label(it, 14f).apply { maxLines = 6; secondary(0.8f); setLineSpacing(0f, 1.15f); setPadding(0, dp(10), 0, 0) }) }
             extra?.let { addView(it) }
