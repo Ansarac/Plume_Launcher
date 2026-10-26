@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The in-app updater compares the tag with versionName.
+      - name: Check the tag
+        run: grep -q "versionName = \"${GITHUB_REF_NAME#v}\"" app/build.gradle.kts
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Set up signing
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          echo "$SIGNING_KEY" | base64 -d > "$RUNNER_TEMP/release.jks"
+          cat > keystore.properties <<PROPS
+          storeFile=$RUNNER_TEMP/release.jks
+          storePassword=$SIGNING_PASSWORD
+          keyAlias=plume
+          keyPassword=$SIGNING_PASSWORD
+          PROPS
+      - run: ./gradlew assembleRelease
+      # The in-app updater downloads Plume.apk from the latest release.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ver=${GITHUB_REF_NAME#v}
+          awk '$0 == "## Unreleased" { f = 1; next } /^## / { f = 0 } f' CHANGELOG.md > notes.md
+          cp app/build/outputs/apk/release/app-release.apk Plume.apk
+          gh release create "$GITHUB_REF_NAME" Plume.apk --title "Plume $ver" --notes-file notes.md --draft
