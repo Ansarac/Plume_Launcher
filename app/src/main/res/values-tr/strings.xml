@@ -162,6 +162,10 @@
     <string name="setup_not_now">Şimdi Değil</string>
     <string name="setup_skip_check">Bu kontrolü atla</string>
     <string name="setup_open_accessibility">Erişilebilirliği Aç</string>
+    <string name="setup_restricted_title">Plume\'un Ana Ekran tuşuna izin verin</string>
+    <string name="setup_restricted_body">Bu TV, Play Store dışından yüklenen uygulamalar için anahtarı devre dışı bırakır. Uygulama bilgilerinde ⋮ menüsünü açın, \"Kısıtlanmış ayarlara izin ver\"i seçin, ardından buraya dönmek için Geri\'ye basın.</string>
+    <string name="setup_open_app_info">Uygulama bilgilerini aç</string>
+    <string name="setup_no_menu">⋮ menüsü yok</string>
     <string name="setup_try_again">Tekrar dene</string>
     <string name="setup_close">Kapat</string>
     <string name="setup_done">Tamam</string>

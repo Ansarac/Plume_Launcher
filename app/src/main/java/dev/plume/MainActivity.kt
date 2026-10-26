@@ -546,24 +546,42 @@ class MainActivity : Activity() {
 
     // ---------- Home setup ----------
     // Popups that try each way of making Home land on Plume, stopping at the first that works: the default-home
-    // role, then the Home button service, then adb help for TVs that grey out the service (Android 13+
-    // "restricted settings" for sideloaded apps). Each way is checked by asking for a Home press: one that
-    // reaches us arrives as a Home intent; one that doesn't sends us to the background.
+    // role (skipped on Google TV and Fire TV, which ignore it), then the Home button service, then on Android 13+
+    // App info's "Allow restricted settings" for sideloaded apps, then adb help for TVs that still grey it out.
+    // Each way is checked by asking for a Home press: one that reaches us arrives as a Home intent; one that
+    // doesn't sends us to the background.
 
     private var setupDialog: Dialog? = null
-    private var setupStep = 0 // 1 role dialog open, 2 Accessibility settings open
+    private var setupStep = 0 // 1 role dialog open, 2 Accessibility settings open, 3 App info open
     private var homeTest = 0 // the way being checked (1 role, 2 service) while waiting for a Home press
     private var leftDuringTest = false
     private var previewAt = -1 // debug builds: which popup the preview is on, -1 when not previewing
+    private var restrictedTried = false // App info's "Allow restricted settings" already offered this round
+
+    /** Google TV takes the home role but its own launcher still gets Home, so only the service works there. */
+    private fun googleTv() = try {
+        packageManager.getPackageInfo(HomeWatch.GOOGLE_TV, 0)
+        true
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
+    }
+
+    /** Home opens Plume one way or the other: the service anywhere, the role only where the TV honours it. */
+    private fun homeSetUp() = homeServiceOn() || (isDefaultHome() && !googleTv() && !HomeOverride.fireTv(this))
 
     private fun startHomeSetup() {
-        if (HomeOverride.fireTv(this)) return tryHomeService() // Fire OS takes the role request and ignores it
+        restrictedTried = false
+        // Fire OS takes the role request and ignores it; Google TV grants it and still opens its own launcher.
+        if (HomeOverride.fireTv(this) || googleTv()) return tryHomeService()
         val roles = if (Build.VERSION.SDK_INT >= 29) getSystemService(RoleManager::class.java) else null
         if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME) && !roles.isRoleHeld(RoleManager.ROLE_HOME)) rolePopup()
         else afterHomeRole()
     }
 
     private fun afterHomeRole() = if (isDefaultHome() || homeServiceOn()) testPopup(1) else tryHomeService()
+
+    /** Service still off after Accessibility: on Android 13+ a sideloaded app's toggle is greyed until App info allows it. */
+    private fun serviceStillOff() = if (Build.VERSION.SDK_INT >= 33 && !restrictedTried) restrictedPopup() else adbPopup()
 
     private fun tryHomeService() {
         prefs.edit().remove("home_off").apply()
@@ -575,7 +593,10 @@ class MainActivity : Activity() {
     private fun homeSetupResumed() {
         if (setupStep == 2) {
             setupStep = 0
-            if (homeServiceOn()) testPopup(2) else adbPopup()
+            if (homeServiceOn()) testPopup(2) else serviceStillOff()
+        } else if (setupStep == 3) {
+            setupStep = 0
+            servicePopup()
         } else if (homeTest != 0 && leftDuringTest) {
             val failed = homeTest
             homeTest = 0
@@ -609,6 +630,22 @@ class MainActivity : Activity() {
             }
         },
         getString(R.string.setup_not_now) to { setupDialog?.dismiss() })
+
+    /** Android 13+ "restricted settings": App info's ⋮ menu has "Allow restricted settings" on TVs that show it. */
+    private fun restrictedPopup() {
+        if (previewAt < 0) restrictedTried = true
+        homePopup(2, getString(R.string.setup_restricted_title), getString(R.string.setup_restricted_body), null,
+            getString(R.string.setup_open_app_info) to {
+                setupStep = 3
+                try {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+                } catch (e: Exception) {
+                    setupStep = 0
+                    adbPopup()
+                }
+            },
+            getString(R.string.setup_no_menu) to { adbPopup() })
+    }
 
     /** The one-time grant lets Plume switch the service on itself, past the greyed-out toggle. */
     private fun adbPopup() {
@@ -721,8 +758,9 @@ class MainActivity : Activity() {
             0 -> rolePopup()
             1 -> testPopup(1)
             2 -> servicePopup()
-            3 -> adbPopup()
-            4 -> donePopup()
+            3 -> restrictedPopup()
+            4 -> adbPopup()
+            5 -> donePopup()
             else -> setupDialog?.dismiss()
         }
     }
@@ -1588,7 +1626,7 @@ class MainActivity : Activity() {
             }
         }
         // Until Home opens Plume one way or the other, a card on top leads to the setup; not after Home was turned off on purpose.
-        val top = listOfNotNull(if (homeServiceOn() || isDefaultHome() || prefs.getBoolean("home_off", false)) null
+        val top = listOfNotNull(if (homeSetUp() || prefs.getBoolean("home_off", false)) null
                 else Triple(R.string.finish_setup, page(getString(R.string.finish_setup), "›") { closeLauncherSettings(); startHomeSetup() },
                     RowStyle(R.drawable.ic_home, getString(R.string.finish_setup_value), help = getString(R.string.help_finish_setup)))) +
             sections.map { (key, value, keys) ->

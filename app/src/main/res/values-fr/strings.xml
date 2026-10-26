@@ -171,6 +171,10 @@
     <string name="setup_not_now">Plus tard</string>
     <string name="setup_skip_check">Passer cette vérification</string>
     <string name="setup_open_accessibility">Ouvrir l\'accessibilité</string>
+    <string name="setup_restricted_title">Autoriser le bouton Accueil de Plume</string>
+    <string name="setup_restricted_body">Cette TV grise l\'interrupteur pour les applis installées hors du Play Store. Dans Infos sur l\'appli, ouvrez le menu ⋮, choisissez \"Autoriser les paramètres restreints\", puis appuyez sur Retour pour revenir ici.</string>
+    <string name="setup_open_app_info">Ouvrir Infos sur l\'appli</string>
+    <string name="setup_no_menu">Pas de menu ⋮</string>
     <string name="setup_try_again">Réessayer</string>
     <string name="setup_close">Fermer</string>
     <string name="setup_done">Terminé</string>
