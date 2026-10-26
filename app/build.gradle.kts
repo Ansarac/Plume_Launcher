@@ -13,13 +13,13 @@ android {
         applicationId = "dev.plume"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.5"
+        versionCode = 1006
+        versionName = "1.5.6"
         // What's new: only this version's section of CHANGELOG.md ships, one entry per line, without ** marks.
         val notes = rootProject.file("CHANGELOG.md").readText().replace("\r", "")
-            .substringAfter("\n## $versionName\n", "").substringBefore("\n## ")
+            .substringAfter("\n## Unreleased\n", "").substringBefore("\n## ")
             .lines().filter { it.startsWith("- ") }.map { it.removePrefix("- ").replace("**", "") }
-        require(notes.isNotEmpty()) { "CHANGELOG.md has no entries under \"## $versionName\"" }
+        require(notes.isNotEmpty()) { "CHANGELOG.md has no entries under \"## Unreleased\"" }
         resValue("string", "whats_new", notes.joinToString("\\n") { it.replace("'", "\\'").replace("\"", "\\\"") })
     }
 
