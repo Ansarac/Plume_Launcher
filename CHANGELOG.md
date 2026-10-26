@@ -26,11 +26,13 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 - **Less memory.** Plume keeps the wallpaper and the app icons once instead of twice. On a test TV, it uses about 11 MB less.
 - A new **Sources** icon in the top bar opens the list of the TV inputs. Select an input to switch to it. A device that names itself over HDMI, like a PS5, shows with its logo. A port with no signal says so. Hold OK on an input to put it in the row or take it out. Inputs that were in the row before the update stay there.
 - **Remote keys.** Change what a button on your remote does. Select **Plume settings → Remote & Home button → Remote keys → Add a key**. Press the key on your remote. Then choose what a press does and what a hold does. A key can play or pause, go back, or open an app or an input. It can also open Android settings or the network settings, or do nothing. If you set a PIN in **Lock layout**, Plume asks for it first.
+- **Glass.** Select **Plume settings → Appearance → Glass**. Plume blurs the wallpaper behind the tiles, the menus, the cards, the settings panel and the short messages. It looks like frosted glass. It is off by default.
 - A long app name no longer runs past its tile. It scrolls slowly while the app is selected.
 - **Uninstall an app.** Hold **OK** on an app in the row. Select **Uninstall**. Plume does not show this for system apps, for Plume, or when the layout is locked.
 - **Plume settings → Apps row → Icon style** has a new choice, **Banner**. Each app shows its own picture, as on Apple TV. An app with no banner gets its own colour behind a white mark. Monochrome stays the default.
 - **Plume settings → Apps row → Icon style** has a fourth choice, **Monochrome banner**. The pictures are grey until you select one. An app with no banner gets its own colour behind a white mark, as with **Banner**.
 - **New order in Plume settings.** The sections follow the home screen from top to bottom: **Wallpaper & theme**, **Clock & weather**, **Apps row** and **Shows row**. Then come **Screensaver**, **Remote & Home button**, **Lock layout** and **Updates**. Some settings have shorter names. Your settings do not change. If Home does not open Plume yet, a **Finish setup** card shows at the top.
+- Plume shows in the app list on Xiaomi TVs. It also shows in other launchers that show only phone apps.
 
 ## 1.5
 

@@ -19,8 +19,20 @@ import android.view.accessibility.AccessibilityEvent
 class HomeOverride : AccessibilityService() {
     override fun onServiceConnected() {
         running = this
-        // Fire OS never passes remote keys to us, and filtering them costs volume its repeats: watch windows only.
-        if (fireTv(this)) serviceInfo = serviceInfo.apply { flags = flags and AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS.inv() }
+        applyKeyFilter()
+    }
+
+    /**
+     * Seeing keys costs volume its hold on TVs: Android acts on Volume before any service sees it and the key never
+     * repeats. So Smooth volume turns key filtering off, unless remote keys need it (set, or one being learned).
+     * Home is then caught by the Google TV window watcher below, which shows Google TV for about a second.
+     * Fire OS never passes remote keys to us, so there filtering is always off.
+     */
+    fun applyKeyFilter() {
+        val filter = !fireTv(this) && (!getSharedPreferences("home", MODE_PRIVATE).getBoolean("smooth_volume", false) ||
+            Remap.all(this).isNotEmpty() || Remap.learn != null)
+        val flag = AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+        serviceInfo = serviceInfo.apply { flags = if (filter) flags or flag else flags and flag.inv() }
     }
 
     /** Turned off, from Plume's switch or Android's Accessibility settings: the app mustn't turn it back on. */
