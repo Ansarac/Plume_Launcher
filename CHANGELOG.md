@@ -16,6 +16,7 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- **Setup fits your TV.** The Home button setup now starts with the step that works on your TV. Google TV and Fire TV go straight to the Home button switch. On Android 13 and 14, setup shows how to allow the switch in **App info**.
 - **Set how strong the fades are.** Select **Plume settings → Appearance → Top fade** or **Bottom fade**. Press Left or Right to change the fade from 0% to 100%. The fade on your photo changes while you watch. 0% turns the fade off.
 - **Settings show what they change.** In **Plume settings**, the home screen behind the panel goes darker. The part that the selected section changes stays bright, for example the clock or the apps row. Pages slide in when you open them and slide back when you press Back.
 - **Clearer Plume settings.** Each section has an icon. Under its name, each section shows its settings. Settings with two or three choices show all of them. **Theme** shows a sun for **Light**, a moon for **Dark** and a half circle for **Auto**. **Light wallpaper** and **Dark wallpaper** show as small pictures. A line at the bottom tells what the selected setting does.
