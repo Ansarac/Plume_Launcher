@@ -13,15 +13,15 @@ android {
         applicationId = "dev.plume"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.6"
+        versionCode = 1011
+        versionName = "1.6.11"
         // What's new: only this version's section of CHANGELOG.md ships, one entry per line, ** marks kept for bold.
         // A ### heading ships as a line that starts with #.
         val notes = rootProject.file("CHANGELOG.md").readText().replace("\r", "")
-            .substringAfter("\n## $versionName\n", "").substringBefore("\n## ")
+            .substringAfter("\n## Unreleased\n", "").substringBefore("\n## ")
             .lines().filter { it.startsWith("- ") || it.startsWith("### ") }
             .map { if (it.startsWith("### ")) "#" + it.removePrefix("### ") else it.removePrefix("- ") }
-        require(notes.isNotEmpty()) { "CHANGELOG.md has no entries under \"## $versionName\"" }
+        require(notes.isNotEmpty()) { "CHANGELOG.md has no entries under \"## Unreleased\"" }
         resValue("string", "whats_new", notes.joinToString("\\n") { it.replace("'", "\\'").replace("\"", "\\\"") })
     }
 
