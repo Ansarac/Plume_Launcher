@@ -13,18 +13,19 @@ android {
         applicationId = "dev.plume"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "1.7.1"
+        versionCode = 1021
+        versionName = "1.7.1.21"
         // What's new: only this version's section of CHANGELOG.md ships, one entry per line, ** marks kept for bold.
-        // A ### heading ships as a line that starts with #. A fix release (1.7.1) ships its x.y section after its own,
-        // so people who update from 1.6 still see what 1.7 brought.
+        // A ### heading ships as a line that starts with #. A fork build ships "## Unreleased", then the section of
+        // its upstream version (1.7.1) and that version's x.y section, so people who update from 1.6 see what 1.7 brought.
         val changelog = rootProject.file("CHANGELOG.md").readText().replace("\r", "")
         val section = { v: String -> changelog.substringAfter("\n## $v\n", "").substringBefore("\n## ") }
-        val minor = versionName!!.split('.').take(2).joinToString(".")
-        val notes = (section(versionName!!) + if (minor != versionName) "\n" + section(minor) else "")
+        val upstream = versionName!!.substringBeforeLast('.')
+        val minor = upstream.split('.').take(2).joinToString(".")
+        val notes = (section("Unreleased") + "\n" + section(upstream) + if (minor != upstream) "\n" + section(minor) else "")
             .lines().filter { it.startsWith("- ") || it.startsWith("### ") }
             .map { if (it.startsWith("### ")) "#" + it.removePrefix("### ") else it.removePrefix("- ") }
-        require(notes.isNotEmpty()) { "CHANGELOG.md has no entries under \"## $versionName\"" }
+        require(notes.isNotEmpty()) { "CHANGELOG.md has no entries under \"## Unreleased\"" }
         resValue("string", "whats_new", notes.joinToString("\\n") { it.replace("'", "\\'").replace("\"", "\\\"") })
     }
 
