@@ -213,9 +213,9 @@
     <string name="setup_skip_check">Omitir esta comprobación</string>
     <string name="setup_open_accessibility">Abrir Accesibilidad</string>
     <string name="setup_restricted_title">Permite el botón Inicio de Plume</string>
-    <string name="setup_restricted_body">Esta TV atenúa el interruptor para apps instaladas fuera de Play Store. En Información de la app, abre el menú ⋮, elige \"Permitir ajustes restringidos\" y pulsa Atrás para volver aquí.</string>
+    <string name="setup_restricted_body">Esta TV atenúa el interruptor para apps instaladas fuera de Play Store. En Información de la app, selecciona \"Permitir ajustes restringidos\". En algunas TV está en el menú ⋮. Luego pulsa Atrás para volver aquí.</string>
     <string name="setup_open_app_info">Abrir Información de la app</string>
-    <string name="setup_no_menu">No hay menú ⋮</string>
+    <string name="setup_no_menu">No lo encuentro</string>
     <string name="setup_try_again">Intentar de nuevo</string>
     <string name="setup_close">Cerrar</string>
     <string name="setup_done">Listo</string>

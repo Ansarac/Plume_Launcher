@@ -215,9 +215,9 @@
     <string name="setup_skip_check">Skip this check</string>
     <string name="setup_open_accessibility">Open Accessibility</string>
     <string name="setup_restricted_title">Allow Plume\'s Home button</string>
-    <string name="setup_restricted_body">This TV greys out the switch for apps installed outside the Play Store. In App info, open the ⋮ menu, choose \"Allow restricted settings\", then press Back to come back here.</string>
+    <string name="setup_restricted_body">This TV greys out the switch for apps installed outside the Play Store. In App info, select \"Allow restricted settings\". On some TVs it is under the ⋮ menu. Then press Back to come back here.</string>
     <string name="setup_open_app_info">Open App info</string>
-    <string name="setup_no_menu">No ⋮ menu</string>
+    <string name="setup_no_menu">I can\'t find it</string>
     <string name="setup_try_again">Try again</string>
     <string name="setup_close">Close</string>
     <string name="setup_done">Done</string>
