@@ -557,6 +557,7 @@ class MainActivity : Activity() {
     private var previewAt = -1 // debug builds: which popup the preview is on, -1 when not previewing
 
     private fun startHomeSetup() {
+        if (HomeOverride.fireTv(this)) return tryHomeService() // Fire OS takes the role request and ignores it
         val roles = if (Build.VERSION.SDK_INT >= 29) getSystemService(RoleManager::class.java) else null
         if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME) && !roles.isRoleHeld(RoleManager.ROLE_HOME)) rolePopup()
         else afterHomeRole()
