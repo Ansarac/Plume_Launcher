@@ -143,6 +143,19 @@ internal fun watchSortKey(type: Long, engaged: Long): Long {
 }
 
 /**
+ * Sort key of a card from an app's home-screen channel. Channels have no Watch Next type, so every card counts as
+ * "continue". The card's own last-watched time when the app sets one (Nuvio does), else the time the app was last
+ * opened from Plume.
+ */
+internal fun channelSortKey(engaged: Long, opened: Long) = watchSortKey(0, if (engaged > 0) engaged else opened)
+
+/**
+ * Rows as (weight, sort key, item) to (sort key, item), highest weight first. A channel's cards often share one sort
+ * key; the weight is the app's own order for them (Nuvio gives its newest the highest), and [newestPerApp] keeps it.
+ */
+internal fun <T> byWeight(rows: List<Triple<Long, Long, T>>) = rows.sortedByDescending { it.first }.map { it.second to it.third }
+
+/**
  * Newest first across apps (ties keep their order), each app's [perApp] newest ahead of the rest: one app's ten
  * shows can't bury the others. The rest follow, newest first, so an app on its own isn't held to [perApp].
  */
@@ -3387,8 +3400,8 @@ class MainActivity : Activity() {
      * 1. The system Watch Next list (Netflix etc.), newest engagement first.
      * 2. Apps' own home-screen channels the user switched on (see [channelOn]); ones named "Continue Watching"
      *    are on to start with. Stremio publishes one (with progress and an autoPlay resume link) instead of
-     *    using Watch Next, so signing in to Stremio on the TV is all it takes. Channel rows carry no timestamps,
-     *    so they use the time the app was last opened from Plume, keeping the app's own order among themselves.
+     *    using Watch Next, so signing in to Stremio on the TV is all it takes. Channel rows sort by their own
+     *    last-watched time when the app sets one, else by the time the app was last opened from Plume, see [channelSortKey].
      * Newest first across apps, each app's [PER_APP] newest ahead of the rest, so one app with ten shows can't bury the others.
      */
     private fun queryWatchNext(): List<Prog> {
@@ -3399,7 +3412,7 @@ class MainActivity : Activity() {
         autoRowName = if (watchNextOn) null
             else on.map { it.third }.distinct().singleOrNull()?.takeUnless { it.equals("Continue Watching", ignoreCase = true) }
         val channels = on.flatMap { (id) ->
-            readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden, "ch$id").map { (_, p) -> watchSortKey(0, prefs.getLong("t_${p.pkg}", 0)) to p }
+            readPrograms(TvContract.buildPreviewProgramsUriForChannel(id), hidden, "ch$id")
         }
         val all = watchNext + channels
         publishingPkgs = all.mapNotNull { it.second.pkg }.toSet()
@@ -3500,9 +3513,9 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Pairs of (sort key, item), see [watchSortKey]; channel rows have no time of their own and get the type "continue". */
+    /** Pairs of (sort key, item), see [watchSortKey]; a [group] is a channel, its rows sorted by [channelSortKey] and [byWeight]. */
     private fun readPrograms(uri: Uri, hidden: Set<String>, group: String? = null): List<Pair<Long, Prog>> {
-        val out = ArrayList<Pair<Long, Prog>>()
+        val out = ArrayList<Triple<Long, Long, Prog>>()
         contentResolver.query(uri, null, null, null, null)?.use { c ->
             fun str(col: String) = c.getColumnIndex(col).let { if (it < 0 || c.isNull(it)) null else c.getString(it) }
             fun num(col: String) = c.getColumnIndex(col).let { if (it < 0 || c.isNull(it)) 0L else c.getLong(it) }
@@ -3522,10 +3535,12 @@ class MainActivity : Activity() {
                 val progress = if (duration > 0 && position >= 1000) (position * 100 / duration).toInt().coerceIn(0, 100) else 0
                 val pkg = str("package_name")
                 val prog = Prog(title, sub, progress, str("thumbnail_uri") ?: str("poster_art_uri"), str("intent_uri"), pkg, group ?: pkg)
-                out += watchSortKey(num("watch_next_type"), num("last_engagement_time_utc_millis")) to prog
+                val engaged = num("last_engagement_time_utc_millis")
+                out += Triple(num("weight"),
+                    if (group == null) watchSortKey(num("watch_next_type"), engaged) else channelSortKey(engaged, prefs.getLong("t_$pkg", 0)), prog)
             }
         }
-        return out
+        return byWeight(out)
     }
 
     private fun hideKey(pkg: String?, title: String) = "$pkg/$title"
