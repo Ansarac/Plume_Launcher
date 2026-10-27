@@ -2349,12 +2349,27 @@ class MainActivity : Activity() {
             scaleType = ImageView.ScaleType.FIT_XY
             if (grey) { colorFilter = GREYSCALE; alpha = rest }
         }
+        // A colour banner has nothing else to tell the selected tile from the others: the rest are dimmed a little,
+        // and the selected one gets a ring in the text colour. Both fade over the same 160 ms as the lift.
+        val dim = View(this).apply { setBackgroundColor(Color.BLACK); alpha = if (grey) 0f else BANNER_DIM }
+        val ring = View(this).apply {
+            background = GradientDrawable().apply {
+                cornerRadius = dp(8).toFloat()
+                setStroke(dp(3), fg)
+                setColor(Color.TRANSPARENT)
+            }
+            alpha = 0f
+        }
         val col = FrameLayout(this).apply {
             addView(pic, MATCH_PARENT, MATCH_PARENT)
+            addView(dim, MATCH_PARENT, MATCH_PARENT)
+            addView(ring, MATCH_PARENT, MATCH_PARENT)
             tag = a.pkg
             setOnClickListener { launch(a) }
         }
-        style(col, dp(8), card = false) { focused ->
+        style(col, dp(8), card = false, lift = 1.12f) { focused ->
+            ring.animate().alpha(if (focused) 1f else 0f).setDuration(160).start()
+            if (!grey) dim.animate().alpha(if (focused) 0f else BANNER_DIM).setDuration(160).start()
             if (!grey) return@style
             pic.colorFilter = if (focused) null else GREYSCALE
             pic.animate().alpha(if (focused) 1f else rest).setDuration(160).start()
@@ -3948,6 +3963,7 @@ class MainActivity : Activity() {
         const val FADE_STEP = 5 // percent per Left/Right on a fade slider
         const val SLIDER_DP = 96 // a slider's width
         const val SLIDER_VALUE_DP = 72 // width of the value beside a slider
+        const val BANNER_DIM = 0.3f // black laid over a colour banner at rest, so the selected one stands out
         const val DARK_DIM = 115 // alpha of the black laid over the Bing picture in dark mode (45%)
         const val PIN_TRIES = 5 // wrong PINs before a 30 s wait
         const val UNLOCKED_MS = 5 * 60_000L

@@ -16,6 +16,8 @@ Put changes that are not released under `## Unreleased`. Rename that heading to 
 
 ## Unreleased
 
+- **Banner icons are easier to read.** The selected banner has a ring and grows a little more. The other banners are slightly darker.
+
 ## 1.6
 
 ### Design
