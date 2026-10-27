@@ -57,6 +57,12 @@ Some of Plume's text still lives in the Kotlin code instead of `strings.xml`. Pl
 
 Use the [bug report form](../../issues/new/choose). The TV model, Android version and Plume version matter most, because many problems only happen on one manufacturer's TVs. A photo or video of the screen helps a lot.
 
+## Diagnostic tools
+
+The `tools/` directory contains helper scripts for testing:
+
+- `tools/plume-firetv-probe.sh`: collects Home button events and logs on Fire TV without changing settings. See [#87](../../issues/87).
+
 ## Building
 
 See [Building from source](README.md#building-from-source) in the README.
