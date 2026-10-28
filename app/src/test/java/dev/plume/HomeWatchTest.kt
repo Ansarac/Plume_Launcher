@@ -44,4 +44,12 @@ class HomeWatchTest {
         w.opened("dev.plume", "dev.plume.MainActivity", 2_000)
         assertEquals(0L, w.opened(gtv, "com.google.android.apps.tv.launcherx.home.HomeActivity", 3_000))
     }
+
+    @Test fun xiaomiHomeJumpsAtOnce() {
+        val w = HomeWatch()
+        val xiaomi = "com.mitv.tvhome"
+        w.opened("dev.plume", "dev.plume.MainActivity", 1_000)
+        assertEquals(0L, w.opened(xiaomi, "com.mitv.tvhome.MainActivityUserMode", 2_000))
+        assertNull(w.opened(xiaomi, "com.mitv.tvhome.SomeOtherActivity", 3_000))
+    }
 }
