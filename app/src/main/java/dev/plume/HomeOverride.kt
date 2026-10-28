@@ -83,6 +83,7 @@ class HomeOverride : AccessibilityService() {
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
         if (e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = e.packageName?.toString() ?: return
+        android.util.Log.d("PlumeHome", "window $pkg ${e.className}") // TEMP: drop before upstream PR
         handler.removeCallbacks(jump) // any other window opening means Home wasn't where we were going
         watch.opened(pkg, e.className?.toString(), SystemClock.uptimeMillis())?.let { handler.postDelayed(jump, it) }
     }
