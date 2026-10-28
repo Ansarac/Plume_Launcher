@@ -18,13 +18,14 @@ class HomeWatch {
         }
         if (now - lastJump < JUMP_GAP_MS) return null // one Home press sends several of these
         lastJump = now
-        return if (settingsMayFollow && pkg != GOOGLE_TV) SETTINGS_WAIT_MS else 0
+        return if (settingsMayFollow && (pkg == AMAZON || pkg == OLD_AMAZON)) SETTINGS_WAIT_MS else 0
     }
 
     private fun isHome(pkg: String, cls: String?) = when (pkg) {
         GOOGLE_TV -> cls?.contains("dashboard", ignoreCase = true) != true // holding Home opens the dashboard
         AMAZON -> cls?.startsWith("$AMAZON.ui.HomeActivity") == true // HomeActivity_vNext on current builds
         OLD_AMAZON -> cls == "$OLD_AMAZON.Launcher"
+        XIAOMI -> cls == "$XIAOMI.MainActivityUserMode"
         else -> false
     }
 
@@ -33,6 +34,7 @@ class HomeWatch {
         const val GOOGLE_TV = "com.google.android.apps.tv.launcherx"
         private const val AMAZON = "com.amazon.tv.launcher"
         private const val OLD_AMAZON = "com.amazon.firelauncher"
+        private const val XIAOMI = "com.mitv.tvhome"
         private const val AMAZON_SETTINGS = "com.amazon.tv.settings"
         private const val JUMP_GAP_MS = 600L
         const val SETTINGS_WAIT_MS = 550L
