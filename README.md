@@ -89,7 +89,7 @@ adb shell pm grant dev.plume android.permission.WRITE_SECURE_SETTINGS
 
 This lets Plume:
 - set the Gallery screensaver from its own settings
-- turn its Home button service back on automatically if the app is ever force-stopped
+- turn its Home button service back on when you open Plume after the app was force-stopped
 
 Everything else works without it.
 
@@ -133,6 +133,22 @@ Fire OS never gives the Home key to apps, and it keeps Amazon's home as the home
 - **Remote keys can't be set.** Fire OS doesn't pass the keys to Plume.
 
 If Home doesn't reach Plume on your Fire TV, run [`tools/plume-firetv-probe.sh`](tools/plume-firetv-probe.sh) and post the result in [#153](../../issues/153).
+
+### Xiaomi TV with HyperOS
+
+Tested on a Redmi G Pro 27U (HyperOS 3, Android 14). HyperOS keeps its own home screen for the Home key, so Plume needs the Home button service there. Choosing Plume as the default launcher has no effect.
+
+- **Allow restricted settings can't be reached**, because HyperOS hides app settings. To turn on Developer options, open **Settings → About** (设置 → 关于) and press **Product model** (产品型号) seven times. Then turn on ADB debugging and give Plume the adb grant from [Home button on Android 13 and newer](#home-button-on-android-13-and-newer).
+- **HyperOS stops Plume when the TV turns off.** Android then turns the Home button service off, and Home opens the Xiaomi home screen until you open Plume again.
+  - **Power off** (关机) keeps the apps on a list. Add Plume to it, then restart the TV. The list is read only when the TV starts:
+
+    ```sh
+    adb shell settings put system str_killbackgroud_pkg_white_list dev.plume
+    adb reboot
+    ```
+
+    On the tested TV, `adb shell settings get system str_killbackgroud_pkg_white_list` showed `null`. If it shows anything else, this command replaces it.
+  - **Screen off** (息屏) stops Plume even when it is on the list. A short press on the power button does Screen off by default. Set **Settings → General settings → Short press power key** (设置 → 通用设置 → 短按开关键) to **Power off** (关机).
 
 ## Using Plume
 
@@ -211,7 +227,7 @@ Plume has no analytics, no ads and no account. It only connects to the internet 
 <details>
 <summary><b>The Home button still opens the old home screen</b></summary>
 
-Check that **Plume settings → Remote & Home button → Home button** shows **On**. If the app was force-stopped, Android turns its accessibility service off; open Plume once (or grant the optional adb permission above) to restore it.
+Check that **Plume settings → Remote & Home button → Home button** shows **On**. If the app was force-stopped, Android turns its accessibility service off; open Plume once (or grant the optional adb permission above) to restore it. On a Xiaomi TV with HyperOS, see [Xiaomi TV with HyperOS](#xiaomi-tv-with-hyperos).
 </details>
 
 <details>
