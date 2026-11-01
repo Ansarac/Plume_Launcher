@@ -613,8 +613,8 @@ class MainActivity : Activity() {
         return false
     }
 
+    // Where Home goes, not who holds the role: Xiaomi gives Plume the role and still opens its own launcher.
     private fun isDefaultHome(): Boolean {
-        if (Build.VERSION.SDK_INT >= 29 && getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true) return true
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         return packageManager.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName == packageName
     }
