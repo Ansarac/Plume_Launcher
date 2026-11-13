@@ -84,6 +84,7 @@ You need Android TV or Google TV on **Android 8.0 or newer**.
 | **Google TV / Android TV** | **Plume settings → Home & remote → Home opens Plume**, then turn on **Plume: Home button** in Accessibility. Or choose Plume as the **Home app**. |
 | **Android 13+, switch greyed out** | Unlock it once over adb. See [Android 13 and newer](#android-13-and-newer). |
 | **Fire TV** | The Home button service covers Amazon's home with Plume. See [Fire TV](#fire-tv). |
+| **Xiaomi TV with HyperOS** | Give the adb grant, then keep HyperOS from stopping Plume. See [Xiaomi TV with HyperOS](#xiaomi-tv-with-hyperos). |
 | **Any TV, from a computer** | Run [`tools/plume-install.sh`](tools/plume-install.sh). See [Set up over adb](#set-up-over-adb). |
 | **Other tools** | A launcher app such as **Launcher Manager**, or `adb shell pm disable-user` on the stock launcher. |
 
@@ -123,6 +124,26 @@ Fire OS never gives the Home key to apps. The Home button service watches for Am
 - **Remote keys can't be set.** Fire OS doesn't pass the keys to Plume.
 
 If Home doesn't reach Plume, run [`tools/plume-firetv-probe.sh`](tools/plume-firetv-probe.sh) and post the result in [#153](../../issues/153).
+</details>
+
+<details>
+<summary><b>Xiaomi TV with HyperOS</b></summary>
+
+#### Xiaomi TV with HyperOS
+
+Tested on a Redmi G Pro 27U (HyperOS 3, Android 14). HyperOS ignores the Home app choice, so Plume needs the Home button service.
+
+- **Allow restricted settings is hidden.** Turn on Developer options: **Settings → About** (设置 → 关于), press **Product model** (产品型号) seven times. Turn on ADB debugging, then give the grant from step 3 of [Android 13 and newer](#android-13-and-newer).
+- **HyperOS force-stops Plume when the TV turns off.** The Home service then stays off, and Home opens Xiaomi's home until you open Plume.
+  - **Shutdown** (关机) is a standby, not a restart. It spares the apps on a list. Add Plume; the change works only after a restart:
+
+    ```sh
+    adb shell settings put system str_killbackgroud_pkg_white_list dev.plume
+    adb reboot
+    ```
+
+    This replaces the list. It was `null` on the tested TV.
+  - **Screen off** (息屏) stops Plume anyway. A short press on Power does Screen off by default. Set **Settings → General settings → Short press the on key** (设置 → 通用设置 → 短按开关键) to **Shutdown** (关机).
 </details>
 
 <details>
